@@ -1,66 +1,122 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-  <meta name="theme-color" content="#191511">
-  <title>WoodPrep Turning Simulator</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#17191b" />
+  <title>WoodPrep Lathe</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main id="app">
-    <header class="topbar">
-      <div>
-        <div class="eyebrow">WOODPREP</div>
-        <h1>Turning Simulator</h1>
+    <div id="rotateOverlay" class="rotate-overlay">
+      <div class="rotate-card">
+        <div class="rotate-icon">↻</div>
+        <strong>Rotate device</strong>
+        <span>WoodPrep is landscape only.</span>
       </div>
-      <button id="resetBtn" class="reset-btn" type="button" aria-label="Reset blank">↻</button>
-    </header>
+    </div>
 
-    <section class="sim-wrap">
-      <canvas id="simCanvas" aria-label="Wood turning simulator"></canvas>
+    <!-- MAIN LATHE / WORKPIECE -->
+    <section class="lathe-zone" id="latheZone">
+      <canvas id="latheCanvas" aria-label="Wood turning simulator"></canvas>
 
-      <div class="measure-strip">
-        <div><span>Position</span><strong id="positionReadout">9.0"</strong></div>
-        <div><span>Diameter</span><strong id="diameterReadout">4.00"</strong></div>
-      </div>
+      <!-- SPEED CONTROL: fixed at left/headstock like approved mockup -->
+      <button class="speed-module interactive-area" id="speedArea" type="button" aria-label="Adjust lathe speed">
+        <span class="module-title">SPEED</span>
+        <span class="speed-display">
+          <span class="speed-knob-small">
+            <i id="speedPointerSmall"></i>
+            <b id="speedValueSmall">900</b>
+          </span>
+          <span class="rpm-label">RPM</span>
+        </span>
+      </button>
 
-      <div class="control-dock" id="controlDock">
-        <div class="tool-panel">
-          <div class="panel-label">CHISELS</div>
-          <div class="tool-tray">
-            <button class="tool-btn selected" data-tool="roughing" aria-label="Roughing gouge">
-              <span class="mini-tool roughing"></span>
-            </button>
-            <button class="tool-btn" data-tool="skew" aria-label="Skew chisel">
-              <span class="mini-tool skew"></span>
-            </button>
-            <button class="tool-btn" data-tool="parting" aria-label="Parting tool">
-              <span class="mini-tool parting"></span>
-            </button>
-          </div>
-        </div>
+      <!-- Tool rest itself is the clickable area -->
+      <button id="toolRestHit" class="tool-rest-hit interactive-area" type="button" aria-label="Adjust tool rest">
+        <span class="sr-only">Tool rest settings</span>
+      </button>
 
-        <div class="speed-box">
-          <div class="panel-label">SPEED</div>
-          <div class="knob-wrap">
-            <button id="rpmKnob" class="rpm-knob" type="button"
-                    aria-label="Lathe speed"
-                    aria-valuemin="200"
-                    aria-valuemax="3200"
-                    aria-valuenow="900">
-              <span id="knobPointer" class="knob-pointer"></span>
-              <span class="knob-center">
-                <strong id="rpmReadout">900</strong>
-                <small>RPM</small>
-              </span>
-            </button>
-          </div>
-        </div>
+      <!-- Small fixed app nav; does not alter approved layout -->
+      <nav class="app-nav" aria-label="App navigation">
+        <button id="homeBtn" type="button" title="Home">⌂</button>
+        <button id="resetBtn" type="button" title="Reset workpiece">↻</button>
+        <button id="saveBtn" type="button" title="Save">▣</button>
+        <button id="settingsBtn" type="button" title="Settings">⚙</button>
+      </nav>
+
+      <div class="measure-readout">
+        <span><b id="positionReadout">9.0"</b> POS</span>
+        <span><b id="diameterReadout">4.00"</b> DIA</span>
       </div>
     </section>
 
-    <script src="app.js"></script>
+    <!-- LOWER FIXED TOOL AREAS — MATCH MOCKUP -->
+    <section class="selection-zone" aria-label="Tool selections">
+
+      <!-- SANDPAPER: lower-left -->
+      <button id="sandpaperArea" class="selection-panel sandpaper-panel interactive-area" type="button">
+        <span class="panel-header">SANDPAPER</span>
+        <span class="sand-grid">
+          <span class="sand-card active"><i></i><b>P120</b></span>
+          <span class="sand-card"><i></i><b>P180</b></span>
+          <span class="sand-card"><i></i><b>P220</b></span>
+          <span class="sand-card"><i></i><b>P320</b></span>
+          <span class="sand-card"><i></i><b>P400</b></span>
+          <span class="sand-card"><i></i><b>P600</b></span>
+          <span class="sand-card"><i></i><b>P800</b></span>
+          <span class="sand-card"><i></i><b>P1000</b></span>
+        </span>
+        <span class="active-caption">ACTIVE: <b id="activeSandLabel">P120</b></span>
+      </button>
+
+      <!-- CHISELS: lower-center -->
+      <button id="chiselArea" class="selection-panel chisel-panel interactive-area" type="button">
+        <span class="panel-header">CHISELS</span>
+        <span class="chisel-rack">
+          <span class="rack-tool tool-rough active"><i></i><em></em></span>
+          <span class="rack-tool tool-spindle"><i></i><em></em></span>
+          <span class="rack-tool tool-bowl"><i></i><em></em></span>
+          <span class="rack-tool tool-skew"><i></i><em></em></span>
+          <span class="rack-tool tool-part"><i></i><em></em></span>
+          <span class="rack-tool tool-scrape"><i></i><em></em></span>
+        </span>
+        <span class="active-caption">ACTIVE: <b id="activeChiselLabel">Roughing Gouge</b></span>
+      </button>
+
+      <!-- PAINT / STAIN: lower-right -->
+      <button id="finishArea" class="selection-panel finish-panel interactive-area" type="button">
+        <span class="panel-header">PAINT / STAIN</span>
+        <span class="finish-grid">
+          <span class="finish-chip stain natural active"></span>
+          <span class="finish-chip stain honey"></span>
+          <span class="finish-chip stain walnut"></span>
+          <span class="finish-chip stain espresso"></span>
+          <span class="finish-chip paint charcoal"></span>
+          <span class="finish-chip paint blue"></span>
+          <span class="finish-chip paint teal"></span>
+          <span class="finish-chip paint ochre"></span>
+          <span class="finish-chip paint ivory"></span>
+          <span class="finish-chip paint green"></span>
+        </span>
+        <span class="active-caption">ACTIVE: <b id="activeFinishLabel">Natural</b></span>
+      </button>
+    </section>
+
+    <!-- ONE REUSABLE POPUP SYSTEM -->
+    <div id="modalBackdrop" class="modal-backdrop" hidden>
+      <section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <header class="modal-header">
+          <h2 id="modalTitle">Select</h2>
+          <button id="modalClose" type="button" aria-label="Close">×</button>
+        </header>
+        <div id="modalBody" class="modal-body"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
 </body>
 </html>
