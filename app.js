@@ -55,6 +55,17 @@
     }
   };
 
+  // v0.2.1 — fixed-size rigid-body chisel.
+  const TOOL_VISUAL = {
+    scale: 1.16,
+    tipToHandleCenterPx: 154,
+    handleHalfWidthPx: 18,
+    handleTopFromCenterPx: 36,
+    handleBottomFromCenterPx: 37,
+    ferruleTopFromCenterPx: 50,
+    shaftHalfWidthPx: 9
+  };
+
   const KNOB = {
     min:200,max:3200,startDeg:-135,sweepDeg:270,
     dragging:false,pointerId:null
@@ -93,7 +104,7 @@
     const centerY=h*.315;
     const maxRadiusPx=Math.min(h*.145,(blankRight-blankLeft)*.23);
 
-    const toolHomeY=h*.725;
+    const toolHomeY=h*.755;
     const toolMinHandleY=centerY+maxRadiusPx+66;
 
     return {
@@ -169,6 +180,8 @@
   function toolState(){
     const g=geom();
     const tool=TOOL_DEFS[MODEL.selectedTool];
+    const vis=TOOL_VISUAL;
+    const s=vis.scale;
 
     const xNorm=clamp(MODEL.toolX,0,1);
     const idx=sampleIndex(xNorm);
@@ -176,32 +189,47 @@
     const scale=g.maxRadiusPx/(MODEL.blankDiameterIn/2);
     const surfaceBottomY=g.centerY+currentRadius*scale;
 
-    // The user's HANDLE position asks for a cut depth.
-    // The visible cutting edge never gets teleported inside the workpiece.
-    const minHandle=g.toolMinHandleY;
-    const home=g.toolHomeY;
-    const feed=clamp((home-MODEL.handleY)/(home-minHandle),0,1);
+    // The pointer requests a HANDLE position for the whole rigid tool.
+    const desiredHandleY=MODEL.handleY;
+    const desiredTipY=desiredHandleY-vis.tipToHandleCenterPx*s;
 
-    const desiredRadius=lerp(MODEL.blankDiameterIn/2,.16,feed);
+    // The current wood surface limits upward motion.
+    // Only a small physical bite can enter the wood at once.
+    const maxBitePx=tool.biteIn*scale;
+    const deepestAllowedTipY=surfaceBottomY-maxBitePx;
 
-    let tipY;
+    let actualTipY=desiredTipY;
     let contact=false;
 
-    if(!MODEL.draggingTool || feed<.015){
-      tipY=surfaceBottomY+18;
-    }else if(desiredRadius < currentRadius){
+    if(MODEL.draggingTool && desiredTipY < surfaceBottomY){
       contact=true;
-      tipY=surfaceBottomY + 1 - Math.min(tool.biteIn,currentRadius-desiredRadius)*scale;
-    }else{
-      tipY=g.centerY+desiredRadius*scale;
+      actualTipY=Math.max(desiredTipY,deepestAllowedTipY);
     }
 
+    // Critical fix: actual handle position is derived from actual tip position.
+    // Tip-to-handle distance is ALWAYS constant, so the tool cannot stretch.
+    const actualHandleY=actualTipY+vis.tipToHandleCenterPx*s;
+
+    // Desired final radius still comes from how far the user is trying to push.
+    // Use desiredTipY, not clamped actualTipY, so holding pressure keeps cutting.
+    const desiredRadius=
+      clamp(
+        (desiredTipY-g.centerY)/scale,
+        .16,
+        MODEL.blankDiameterIn/2
+      );
+
     const tipX=g.blankLeft+xNorm*g.blankLengthPx;
-    const handleX=tipX;
 
     return {
-      g,tool,xNorm,idx,currentRadius,desiredRadius,feed,
-      surfaceBottomY,tipX,tipY,handleX,handleY:MODEL.handleY,contact,scale
+      g,tool,xNorm,idx,currentRadius,desiredRadius,
+      desiredTipY,
+      tipX,tipY:actualTipY,
+      handleX:tipX,handleY:actualHandleY,
+      pointerHandleY:desiredHandleY,
+      contact,scale,
+      surfaceBottomY,
+      visualScale:s
     };
   }
 
@@ -495,61 +523,82 @@
   }
 
   function drawTool(){
-    const s=toolState();
-    const x=s.tipX;
-    const tipY=s.tipY;
-    const hY=s.handleY;
+    const st=toolState();
+    const x=st.tipX;
+    const tipY=st.tipY;
+    const hY=st.handleY;
+    const s=st.visualScale;
 
-    // Tool body stays vertical like the reference.
-    const handleTop=hY-36;
-    const shaftBottom=handleTop+4;
+    const handleHalf=TOOL_VISUAL.handleHalfWidthPx*s;
+    const handleTop=hY-TOOL_VISUAL.handleTopFromCenterPx*s;
+    const handleBottom=hY+TOOL_VISUAL.handleBottomFromCenterPx*s;
+    const ferruleTop=hY-TOOL_VISUAL.ferruleTopFromCenterPx*s;
+    const ferruleH=15*s;
+    const shaftBottom=ferruleTop+4*s;
 
-    // steel shaft
-    const steel=ctx.createLinearGradient(x-11,0,x+11,0);
-    steel.addColorStop(0,"#737a7e");
-    steel.addColorStop(.28,"#dfe4e6");
-    steel.addColorStop(.63,"#f7f8f8");
-    steel.addColorStop(1,"#6f767a");
+    // Fixed-size metal body. No dimension depends on how far the handle moves.
+    const steel=ctx.createLinearGradient(x-11*s,0,x+11*s,0);
+    steel.addColorStop(0,"#6b7276");
+    steel.addColorStop(.25,"#cbd1d4");
+    steel.addColorStop(.52,"#fafbfb");
+    steel.addColorStop(.78,"#a2a9ad");
+    steel.addColorStop(1,"#656c70");
 
     ctx.fillStyle=steel;
 
     if(MODEL.selectedTool==="roughing"){
-      // broad slightly flared gouge
       ctx.beginPath();
-      ctx.moveTo(x-11,tipY+5);
-      ctx.lineTo(x-8,shaftBottom);
-      ctx.lineTo(x+8,shaftBottom);
-      ctx.lineTo(x+11,tipY+5);
-      ctx.closePath();ctx.fill();
-
-      ctx.fillStyle="#d8dde0";
-      ctx.beginPath();
-      ctx.ellipse(x,tipY+4,11,4.5,0,Math.PI,Math.PI*2);
+      ctx.moveTo(x-11*s,tipY+5*s);
+      ctx.lineTo(x-8*s,shaftBottom);
+      ctx.lineTo(x+8*s,shaftBottom);
+      ctx.lineTo(x+11*s,tipY+5*s);
+      ctx.closePath();
       ctx.fill();
+
+      ctx.fillStyle="#e3e7e9";
+      ctx.beginPath();
+      ctx.ellipse(x,tipY+4*s,11*s,4.5*s,0,Math.PI,Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle="rgba(92,99,103,.62)";
+      ctx.lineWidth=1.3*s;
+      ctx.beginPath();
+      ctx.moveTo(x-5*s,tipY+7*s);
+      ctx.lineTo(x-3*s,shaftBottom-4*s);
+      ctx.stroke();
     }else if(MODEL.selectedTool==="skew"){
       ctx.beginPath();
-      ctx.moveTo(x-10,tipY+9);
-      ctx.lineTo(x+10,tipY);
-      ctx.lineTo(x+8,shaftBottom);
-      ctx.lineTo(x-8,shaftBottom);
-      ctx.closePath();ctx.fill();
+      ctx.moveTo(x-10*s,tipY+9*s);
+      ctx.lineTo(x+10*s,tipY);
+      ctx.lineTo(x+8*s,shaftBottom);
+      ctx.lineTo(x-8*s,shaftBottom);
+      ctx.closePath();
+      ctx.fill();
     }else{
-      roundRect(x-4,tipY,8,shaftBottom-tipY,2,steel,"#565c60",1);
+      roundRect(
+        x-4*s,
+        tipY,
+        8*s,
+        Math.max(2,shaftBottom-tipY),
+        2*s,
+        steel,
+        "#565c60",
+        1
+      );
       ctx.fillStyle="#edf0f1";
-      ctx.fillRect(x-4,tipY,8,4);
+      ctx.fillRect(x-4*s,tipY,8*s,4*s);
     }
 
-    // brass ferrule
-    const ferruleY=hY-43;
-    const brass=ctx.createLinearGradient(x-15,0,x+15,0);
+    // Fixed-size ferrule.
+    const brass=ctx.createLinearGradient(x-15*s,0,x+15*s,0);
     brass.addColorStop(0,"#6e4312");
     brass.addColorStop(.28,"#dcae45");
     brass.addColorStop(.58,"#ffe17b");
     brass.addColorStop(1,"#7b4a13");
-    roundRect(x-14,ferruleY,28,15,5,brass,"#57340e",1);
+    roundRect(x-14*s,ferruleTop,28*s,ferruleH,5*s,brass,"#57340e",1);
 
-    // handle — explicit grab area
-    const handleGrad=ctx.createLinearGradient(x-18,0,x+18,0);
+    // Fixed-size handle — slightly larger than v0.2.0.
+    const handleGrad=ctx.createLinearGradient(x-handleHalf,0,x+handleHalf,0);
     handleGrad.addColorStop(0,"#713914");
     handleGrad.addColorStop(.27,"#c77427");
     handleGrad.addColorStop(.56,"#f3a84b");
@@ -557,25 +606,30 @@
     handleGrad.addColorStop(1,"#5e2e11");
 
     ctx.beginPath();
-    ctx.moveTo(x-13,hY-31);
-    ctx.quadraticCurveTo(x-18,hY-20,x-16,hY+5);
-    ctx.quadraticCurveTo(x-13,hY+24,x-10,hY+31);
-    ctx.quadraticCurveTo(x,hY+37,x+10,hY+31);
-    ctx.quadraticCurveTo(x+13,hY+24,x+16,hY+5);
-    ctx.quadraticCurveTo(x+18,hY-20,x+13,hY-31);
+    ctx.moveTo(x-13*s,handleTop+5*s);
+    ctx.quadraticCurveTo(x-handleHalf,handleTop+16*s,x-16*s,hY+5*s);
+    ctx.quadraticCurveTo(x-13*s,hY+24*s,x-10*s,handleBottom-6*s);
+    ctx.quadraticCurveTo(x,handleBottom,x+10*s,handleBottom-6*s);
+    ctx.quadraticCurveTo(x+13*s,hY+24*s,x+16*s,hY+5*s);
+    ctx.quadraticCurveTo(x+handleHalf,handleTop+16*s,x+13*s,handleTop+5*s);
     ctx.closePath();
-    ctx.fillStyle=handleGrad;ctx.fill();
-    ctx.strokeStyle="#4c250e";ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle=handleGrad;
+    ctx.fill();
+    ctx.strokeStyle="#4c250e";
+    ctx.lineWidth=2*s;
+    ctx.stroke();
 
-    // handle end cap
     ctx.fillStyle="#e4b34c";
     ctx.beginPath();
-    ctx.ellipse(x,hY+31,10,4,0,0,Math.PI*2);ctx.fill();
+    ctx.ellipse(x,handleBottom-4*s,10*s,4*s,0,0,Math.PI*2);
+    ctx.fill();
 
     if(MODEL.draggingTool){
       ctx.strokeStyle="rgba(202,255,93,.75)";
-      ctx.lineWidth=2;
-      ctx.beginPath();ctx.ellipse(x,hY,23,45,0,0,Math.PI*2);ctx.stroke();
+      ctx.lineWidth=2*s;
+      ctx.beginPath();
+      ctx.ellipse(x,hY,24*s,47*s,0,0,Math.PI*2);
+      ctx.stroke();
     }
   }
 
@@ -593,9 +647,10 @@
   }
 
   function handleHit(x,y){
-    const s=toolState();
-    const dx=(x-s.handleX)/27;
-    const dy=(y-s.handleY)/48;
+    const st=toolState();
+    const scale=st.visualScale;
+    const dx=(x-st.handleX)/(31*scale);
+    const dy=(y-st.handleY)/(52*scale);
     return dx*dx+dy*dy<=1;
   }
 

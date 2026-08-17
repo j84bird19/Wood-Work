@@ -1,32 +1,25 @@
-# Build Notes — v0.2.0
+# Build Notes — v0.2.1
 
-## Why this is a larger revision
+## Root cause
 
-The supplied reference video clarified that the desired interaction is a fixed side/profile turning view, not a first-person/perspective lathe scene.
+In v0.2.0 the tip was clamped to the wood surface while the handle remained at the finger position. The distance between them therefore changed, visually stretching and shrinking the chisel.
 
-The previous perspective presentation was therefore replaced rather than patched.
+## Correction
 
-## Locked concepts preserved
+The chisel is now a rigid body.
 
-- Handle is the touch target.
-- Material removal is persistent.
-- Cutting tip may only take a small bite at the current surface.
-- RPM is controlled by a rotary knob.
-- No game systems.
-- Flat GitHub package.
+- Fixed tip-to-handle distance
+- Fixed shaft width
+- Fixed ferrule dimensions
+- Fixed handle dimensions
+- Constant 1.16 visual scale
 
-## Test these specific behaviors
+When contact occurs, the current wood surface clamps the entire tool. The user's finger may continue requesting a deeper position, but the tool itself only advances as the wood is actually removed.
 
-1. The blank should look like a rough horizontal piece of wood against the teal work area.
-2. A black target profile should stay visible over the blank.
-3. The chisel should stand upright below the blank.
-4. Touching anywhere except the handle should NOT grab the chisel.
-5. Grab the handle and move left/right: the whole tool should follow.
-6. Push the handle upward: the cutting edge should contact the current bottom surface.
-7. Hold a deeper position: the wood should remove gradually, not let the steel pass through it.
-8. Move horizontally while cutting: a continuous turned profile should form.
-9. Cut areas should reveal smoother orange wood.
-10. Chips should fall from the actual contact area.
-11. Select each tool in the wooden tray; the green selected state should move.
-12. Different tools should leave visibly different cut widths/profiles.
-13. The RPM knob must still rotate clockwise/counterclockwise and change speed.
+## Test
+
+1. Move the chisel through open space — its size should never change.
+2. Move left/right — its size should never change.
+3. Push into the wood — the shaft should not stretch.
+4. Hold pressure — the wood should cut away and the whole chisel should gradually advance.
+5. Pull away — the whole tool should withdraw together.
