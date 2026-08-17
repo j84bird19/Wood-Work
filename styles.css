@@ -4,9 +4,11 @@
   color:#fff;background:#17130f;
 }
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#17130f}
+@supports(height:100dvh){body{height:100dvh}}
 button{font:inherit;-webkit-tap-highlight-color:transparent}
 #app{
   height:100vh;
+  height:100dvh;
   display:grid;
   grid-template-rows:auto 1fr;
   max-width:540px;
@@ -35,7 +37,7 @@ h1{font-size:1.05rem;margin:.12rem 0 0;text-shadow:0 2px 0 #492815}
   background:linear-gradient(#d86e23,#a94211);
   box-shadow:0 3px 0 #6f2b0c,0 4px 8px rgba(0,0,0,.3);
 }
-.sim-wrap{min-height:0;position:relative}
+.sim-wrap{min-height:0;position:relative;overflow:hidden;padding-bottom:118px}
 #simCanvas{
   display:block;width:100%;height:100%;
   background:#bca07e;
@@ -56,10 +58,28 @@ h1{font-size:1.05rem;margin:.12rem 0 0;text-shadow:0 2px 0 #492815}
 }
 .measure-strip span{display:block;font-size:.56rem;font-weight:800;color:#e8c99e}
 .measure-strip strong{display:block;font-size:.83rem;margin-top:1px}
-.bottom-ui{
-  position:absolute;left:12px;right:12px;bottom:max(10px,env(safe-area-inset-bottom));
-  display:flex;align-items:flex-end;justify-content:space-between;
-  pointer-events:none;
+.control-dock{
+  position:fixed;
+  z-index:50;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:max(8px,env(safe-area-inset-bottom));
+  width:min(calc(100vw - 16px),524px);
+  min-height:102px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 10px 9px;
+  border:3px solid #613515;
+  border-radius:13px;
+  background:
+    linear-gradient(180deg,rgba(202,130,56,.98),rgba(126,67,29,.99));
+  box-shadow:
+    inset 0 0 0 2px rgba(255,211,139,.45),
+    0 5px 0 rgba(61,31,13,.95),
+    0 8px 18px rgba(0,0,0,.40);
+  pointer-events:auto;
 }
 .tool-panel,.speed-box{pointer-events:auto}
 .panel-label{
@@ -154,3 +174,8 @@ h1{font-size:1.05rem;margin:.12rem 0 0;text-shadow:0 2px 0 #492815}
 @media(min-width:541px){
   #app{border-left:1px solid #3f2b1e;border-right:1px solid #3f2b1e}
 }
+
+/* v0.2.2 fixed controls: these override any prior dock positioning. */
+.bottom-ui{display:none!important}
+.control-dock{visibility:visible!important}
+.knob-center small{display:block;font-size:.38rem;line-height:1;margin-top:2px;opacity:.65}

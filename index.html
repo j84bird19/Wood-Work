@@ -26,7 +26,7 @@
         <div><span>Diameter</span><strong id="diameterReadout">4.00"</strong></div>
       </div>
 
-      <div class="bottom-ui">
+      <div class="control-dock" id="controlDock">
         <div class="tool-panel">
           <div class="panel-label">CHISELS</div>
           <div class="tool-tray">
@@ -43,7 +43,7 @@
         </div>
 
         <div class="speed-box">
-          <div class="panel-label">RPM</div>
+          <div class="panel-label">SPEED</div>
           <div class="knob-wrap">
             <button id="rpmKnob" class="rpm-knob" type="button"
                     aria-label="Lathe speed"
@@ -51,7 +51,10 @@
                     aria-valuemax="3200"
                     aria-valuenow="900">
               <span id="knobPointer" class="knob-pointer"></span>
-              <span class="knob-center"><strong id="rpmReadout">900</strong></span>
+              <span class="knob-center">
+                <strong id="rpmReadout">900</strong>
+                <small>RPM</small>
+              </span>
             </button>
           </div>
         </div>

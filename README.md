@@ -1,26 +1,47 @@
-# WoodPrep Turning Simulator — v0.2.1
+# WoodPrep Turning Simulator — v0.2.2
 
-Flat GitHub-ready build. No folders exist inside the ZIP.
+Flat GitHub-ready build. There are no folders inside the ZIP.
 
-## Fixed-size rigid chisel
+## v0.2.2 fixes
 
-- Chisel is now one rigid object.
-- Tip, shaft, ferrule, and handle keep exactly the same size while moving.
-- Full chisel is approximately 16% larger than v0.2.0.
-- Fixed tip-to-handle distance is maintained at all times.
-- Moving the handle moves the entire tool.
-- When the cutting edge reaches the wood, the wood surface limits the entire chisel rather than stretching its shaft.
-- Continued upward pressure keeps requesting a deeper cut.
-- As wood is removed, the whole fixed-size chisel advances with the new surface.
+### 1. Chisel ↔ wood interaction rebuilt
+The chisel remains a fixed-size rigid object, but the cutting geometry now follows the reference-app interaction more closely.
+
+- Handle directly moves the complete chisel.
+- Tip position directly defines the cutter envelope.
+- Wood is carved toward that envelope immediately while contact is maintained.
+- The wood no longer blocks the chisel and creates the "fighting / lagging" effect.
+- Tool width and tip shape control the shape of the cut.
+- The radius model still makes the cut symmetrical around the spinning workpiece.
+- Chips are generated at the actual contact point.
+
+### 2. Wood rotation is now visually obvious
+RPM was previously changing the internal rotation value, but the surface did not communicate that motion clearly.
+
+New cues:
+- rotating bright reflection
+- rotating opposite-side shadow
+- animated grain bands
+- bark tones/faces cycle as the blank turns
+- rotating end-cap spokes
+- animation speed remains tied to RPM
+
+### 3. Chisels + speed control are now fixed navigation
+The chisel tray and RPM knob use a fixed bottom control dock.
+
+- Always visible above the phone/browser bottom edge
+- Uses dynamic viewport height (`100dvh`)
+- Does not scroll with the simulator
+- Chisel movement is constrained so the handle stays above the dock
+- Tool tray and RPM knob remain interactive at all times
 
 ## Preserved
-
-- Side/profile reference-style interaction
-- Handle-only grab
-- Target outline
-- Rough bark → smooth turned wood
-- Chips at contact
-- Prototype roughing gouge, skew, and parting tool
-- Rotary 200–3200 RPM knob
-- Live position / diameter
-- No game levels, rewards, ads, points, or unlocking
+- fixed-size chisel
+- slightly enlarged chisel
+- handle-only grab
+- three prototype chisel shapes
+- target profile
+- rough-to-turned wood appearance
+- 200–3200 RPM rotary knob
+- live position and diameter
+- no levels, points, unlocking, rewards, or ads

@@ -104,7 +104,7 @@
     const centerY=h*.315;
     const maxRadiusPx=Math.min(h*.145,(blankRight-blankLeft)*.23);
 
-    const toolHomeY=h*.755;
+    const toolHomeY=Math.min(h*.69,h-210);
     const toolMinHandleY=centerY+maxRadiusPx+66;
 
     return {
@@ -180,54 +180,39 @@
   function toolState(){
     const g=geom();
     const tool=TOOL_DEFS[MODEL.selectedTool];
-    const vis=TOOL_VISUAL;
-    const s=vis.scale;
+    const s=TOOL_VISUAL.scale;
 
     const xNorm=clamp(MODEL.toolX,0,1);
     const idx=sampleIndex(xNorm);
     const currentRadius=MODEL.radii[idx];
-    const scale=g.maxRadiusPx/(MODEL.blankDiameterIn/2);
-    const surfaceBottomY=g.centerY+currentRadius*scale;
+    const pxPerIn=g.maxRadiusPx/(MODEL.blankDiameterIn/2);
+    const surfaceBottomY=g.centerY+currentRadius*pxPerIn;
 
-    // The pointer requests a HANDLE position for the whole rigid tool.
-    const desiredHandleY=MODEL.handleY;
-    const desiredTipY=desiredHandleY-vis.tipToHandleCenterPx*s;
-
-    // The current wood surface limits upward motion.
-    // Only a small physical bite can enter the wood at once.
-    const maxBitePx=tool.biteIn*scale;
-    const deepestAllowedTipY=surfaceBottomY-maxBitePx;
-
-    let actualTipY=desiredTipY;
-    let contact=false;
-
-    if(MODEL.draggingTool && desiredTipY < surfaceBottomY){
-      contact=true;
-      actualTipY=Math.max(desiredTipY,deepestAllowedTipY);
-    }
-
-    // Critical fix: actual handle position is derived from actual tip position.
-    // Tip-to-handle distance is ALWAYS constant, so the tool cannot stretch.
-    const actualHandleY=actualTipY+vis.tipToHandleCenterPx*s;
-
-    // Desired final radius still comes from how far the user is trying to push.
-    // Use desiredTipY, not clamped actualTipY, so holding pressure keeps cutting.
-    const desiredRadius=
-      clamp(
-        (desiredTipY-g.centerY)/scale,
-        .16,
-        MODEL.blankDiameterIn/2
-      );
-
+    // Reference-style interaction:
+    // the rigid tool follows the handle directly. The tool never changes size.
+    // The wood is immediately carved to the cutting envelope under the tip,
+    // so the cutting edge and surface remain visually synchronized.
+    const handleY=MODEL.handleY;
+    const tipY=handleY-TOOL_VISUAL.tipToHandleCenterPx*s;
     const tipX=g.blankLeft+xNorm*g.blankLengthPx;
+
+    const desiredRadius=clamp(
+      (tipY-g.centerY)/pxPerIn,
+      .12,
+      MODEL.blankDiameterIn/2
+    );
+
+    const contact=
+      MODEL.draggingTool &&
+      tipY <= surfaceBottomY + 2 &&
+      desiredRadius < currentRadius + .02;
 
     return {
       g,tool,xNorm,idx,currentRadius,desiredRadius,
-      desiredTipY,
-      tipX,tipY:actualTipY,
-      handleX:tipX,handleY:actualHandleY,
-      pointerHandleY:desiredHandleY,
-      contact,scale,
+      tipX,tipY,
+      handleX:tipX,handleY,
+      contact,
+      scale:pxPerIn,
       surfaceBottomY,
       visualScale:s
     };
@@ -249,42 +234,58 @@
   }
 
   function cut(dt){
-    const s=toolState();
-    if(!MODEL.draggingTool || !s.contact)return;
+    const st=toolState();
+    if(!MODEL.draggingTool || !st.contact) return;
 
-    const center=s.xNorm*(MODEL.samples-1);
+    const center=st.xNorm*(MODEL.samples-1);
     const samplesPerIn=(MODEL.samples-1)/MODEL.lengthIn;
-    const half=Math.max(1,(s.tool.widthIn*samplesPerIn)/2);
+    const half=Math.max(1,(st.tool.widthIn*samplesPerIn)/2);
+
     const start=Math.max(0,Math.floor(center-half*1.25));
     const end=Math.min(MODEL.samples-1,Math.ceil(center+half*1.25));
 
-    const rpmFactor=clamp(.55+MODEL.rpm/2800,.60,1.55);
-    const frameRemoval=s.tool.rate*rpmFactor*dt;
-
     let removedTotal=0;
+
+    // RPM now changes chip density and surface animation, but tool position itself
+    // determines geometry. This is much closer to the reference app's carving feel.
+    const rpmCutFactor=clamp(.70+MODEL.rpm/3000,.75,1.65);
+    const smoothing=clamp(.70 + rpmCutFactor*.16,.78,.96);
 
     for(let i=start;i<=end;i++){
       const d=(i-center)/half;
-      const influence=toolInfluence(d,s.tool.influence);
-      if(influence<=0)continue;
+      const influence=toolInfluence(d,st.tool.influence);
+      if(influence<=0) continue;
 
-      // Desired radius is shaped by the cutting edge.
-      const localDesired=
-        (MODEL.blankDiameterIn/2) -
-        ((MODEL.blankDiameterIn/2)-s.desiredRadius)*influence;
+      const blankRadius=MODEL.blankDiameterIn/2;
 
-      if(MODEL.radii[i]>localDesired){
-        const demand=MODEL.radii[i]-localDesired;
-        const maxBite=s.tool.biteIn*influence;
-        const remove=Math.min(demand,maxBite,frameRemoval*influence);
-        MODEL.radii[i]-=remove;
-        MODEL.cutAmount[i]=Math.max(MODEL.cutAmount[i],(MODEL.blankDiameterIn/2)-MODEL.radii[i]);
-        removedTotal+=remove;
+      // The cutting edge's shape raises the target radius toward its sides.
+      // Center of edge reaches the actual tip depth; shoulders cut less deeply.
+      const shoulderLift=(1-influence)*(st.tool.widthIn*.22);
+      const localTarget=Math.min(
+        blankRadius,
+        st.desiredRadius + shoulderLift
+      );
+
+      if(MODEL.radii[i] > localTarget){
+        const before=MODEL.radii[i];
+
+        // Directly approach the cutter envelope so tip and wood do not fight each other.
+        MODEL.radii[i]=Math.max(localTarget,
+          lerp(MODEL.radii[i],localTarget,smoothing)
+        );
+
+        const removed=before-MODEL.radii[i];
+        MODEL.cutAmount[i]=Math.max(
+          MODEL.cutAmount[i],
+          blankRadius-MODEL.radii[i]
+        );
+        removedTotal+=removed;
       }
     }
 
-    if(removedTotal>.0005){
-      spawnChips(s,Math.min(6,1+Math.floor(removedTotal*70)));
+    if(removedTotal>.00025){
+      const chips=Math.min(12,2+Math.floor(removedTotal*130*rpmCutFactor));
+      spawnChips(st,chips);
     }
   }
 
@@ -406,82 +407,126 @@
 
   function drawWood(g){
     const scale=g.maxRadiusPx/(MODEL.blankDiameterIn/2);
+    const spinPhase=MODEL.rotation;
 
-    // Smooth freshly cut wood under everything.
+    // Smooth turned base surface.
     currentProfilePath(g);
     const fresh=ctx.createLinearGradient(0,g.centerY-g.maxRadiusPx,0,g.centerY+g.maxRadiusPx);
-    fresh.addColorStop(0,"#9c5924");
-    fresh.addColorStop(.16,"#d3873a");
-    fresh.addColorStop(.47,"#eda858");
-    fresh.addColorStop(.55,"#c97931");
-    fresh.addColorStop(.83,"#dc9143");
-    fresh.addColorStop(1,"#8d491f");
+    fresh.addColorStop(0,"#76401d");
+    fresh.addColorStop(.14,"#bd7030");
+    fresh.addColorStop(.34,"#eda858");
+    fresh.addColorStop(.51,"#f4bd70");
+    fresh.addColorStop(.70,"#bd6d2d");
+    fresh.addColorStop(.88,"#e19442");
+    fresh.addColorStop(1,"#713b1a");
     ctx.fillStyle=fresh;
     ctx.fill();
 
-    // Lathe rotation bands / turned wood lines.
+    // Strong rotating circumference bands.
+    // Their vertical phase changes with RPM/rotation, making spin obvious on a phone.
     ctx.save();
     currentProfilePath(g);
     ctx.clip();
-    ctx.globalAlpha=.22;
-    const bandOffset=(MODEL.rotation*8)%12;
-    for(let x=g.blankLeft-12+bandOffset;x<g.blankRight+12;x+=12){
-      ctx.fillStyle="rgba(92,42,16,.32)";
-      ctx.fillRect(x,g.centerY-g.maxRadiusPx*1.2,1.3,g.maxRadiusPx*2.4);
+
+    const radius=g.maxRadiusPx;
+    const phase=Math.sin(spinPhase)*0.5+0.5;
+
+    // Sweeping bright reflection rotates around the cylinder.
+    const sweepY=g.centerY +
+      Math.sin(spinPhase) * radius*.72;
+    const shine=ctx.createLinearGradient(0,sweepY-radius*.34,0,sweepY+radius*.34);
+    shine.addColorStop(0,"rgba(255,255,255,0)");
+    shine.addColorStop(.42,"rgba(255,238,190,.04)");
+    shine.addColorStop(.50,"rgba(255,245,210,.42)");
+    shine.addColorStop(.58,"rgba(255,238,190,.05)");
+    shine.addColorStop(1,"rgba(255,255,255,0)");
+    ctx.fillStyle=shine;
+    ctx.fillRect(g.blankLeft,g.centerY-radius*1.1,g.blankLengthPx,radius*2.2);
+
+    // Rotating dark circumference line on opposite side.
+    const darkY=g.centerY +
+      Math.sin(spinPhase+Math.PI) * radius*.78;
+    const shadow=ctx.createLinearGradient(0,darkY-radius*.24,0,darkY+radius*.24);
+    shadow.addColorStop(0,"rgba(40,18,7,0)");
+    shadow.addColorStop(.50,"rgba(50,22,9,.30)");
+    shadow.addColorStop(1,"rgba(40,18,7,0)");
+    ctx.fillStyle=shadow;
+    ctx.fillRect(g.blankLeft,g.centerY-radius*1.1,g.blankLengthPx,radius*2.2);
+
+    // Moving wood grain/lathe lines.
+    const lineOffset=(spinPhase*13) % 18;
+    ctx.globalAlpha=.25;
+    ctx.strokeStyle="#5c2d13";
+    ctx.lineWidth=1.25;
+    for(let y=g.centerY-radius*1.2+lineOffset;y<g.centerY+radius*1.2;y+=18){
+      ctx.beginPath();
+      ctx.moveTo(g.blankLeft,y);
+      for(let j=1;j<=22;j++){
+        const x=g.blankLeft+(j/22)*g.blankLengthPx;
+        const yy=y+Math.sin(j*.72+spinPhase*.45)*2.3;
+        ctx.lineTo(x,yy);
+      }
+      ctx.stroke();
     }
     ctx.restore();
 
-    // Rough outer wood remains only where that X sample has not been carved much.
-    // This creates the same visual logic as the reference: rough blank disappears,
-    // revealing the smoother turned form underneath.
+    // Rough bark remaining where little/no material has been removed.
     ctx.save();
     for(let i=0;i<MODEL.samples-1;i++){
       const t0=i/(MODEL.samples-1),t1=(i+1)/(MODEL.samples-1);
       const x0=g.blankLeft+t0*g.blankLengthPx;
       const x1=g.blankLeft+t1*g.blankLengthPx;
       const cut=MODEL.cutAmount[i];
-      const opacity=clamp(1-cut/.055,0,1);
-      if(opacity<=0)continue;
+      const opacity=clamp(1-cut/.045,0,1);
+      if(opacity<=0) continue;
 
       const r=MODEL.radii[i]*scale;
       const top=g.centerY-r;
       const bottom=g.centerY+r;
 
+      // Bark tone itself also cycles slightly with rotation to mimic a new face
+      // of the log coming around.
+      const rotBand=Math.sin(spinPhase + i*.18);
       const seed=(i*37)%17;
-      const bark=seed<4?"#6e2f24":seed<8?"#8d4030":seed<12?"#5d2a22":"#9b4935";
-      ctx.globalAlpha=.95*opacity;
+      let bark;
+      if(rotBand>.45) bark=seed<8?"#87402e":"#6e3025";
+      else if(rotBand<-.45) bark=seed<8?"#54271f":"#783329";
+      else bark=seed<8?"#9a4933":"#683025";
+
+      ctx.globalAlpha=.94*opacity;
       ctx.fillStyle=bark;
       ctx.fillRect(x0-1,top,(x1-x0)+2,bottom-top);
 
-      // bark streak
-      if(i%10===0){
-        ctx.globalAlpha=.25*opacity;
-        ctx.fillStyle="#2d1715";
-        ctx.fillRect(x0,top+(seed/17)*(bottom-top),Math.max(2,x1-x0+1),2);
+      if(i%9===0){
+        ctx.globalAlpha=.32*opacity;
+        ctx.fillStyle=rotBand>0?"#d06a45":"#2d1715";
+        const veinY=top+((seed/17+.18*Math.sin(spinPhase))%1)*(bottom-top);
+        ctx.fillRect(x0,veinY,Math.max(2,x1-x0+1),2);
       }
     }
     ctx.restore();
 
-    // A few dark irregular bark veins.
+    // Rotating end-cap spokes: extremely clear motion cue.
+    const leftR=MODEL.radii[0]*scale;
     ctx.save();
-    currentProfilePath(g);
-    ctx.clip();
-    ctx.globalAlpha=.45;
-    ctx.strokeStyle="#2a1716";
-    ctx.lineWidth=2;
-    for(let line=0;line<5;line++){
+    ctx.translate(g.blankLeft,g.centerY);
+    ctx.strokeStyle="rgba(52,24,10,.55)";
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.ellipse(0,0,6,leftR,0,0,Math.PI*2);
+    ctx.stroke();
+
+    ctx.rotate(spinPhase);
+    for(let k=0;k<6;k++){
+      const a=(Math.PI*2*k)/6;
       ctx.beginPath();
-      for(let j=0;j<=18;j++){
-        const x=g.blankLeft+(j/18)*g.blankLengthPx;
-        const y=g.centerY-g.maxRadiusPx*.60+line*g.maxRadiusPx*.28+
-          Math.sin(j*.78+line*1.9)*7;
-        if(j===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-      }
+      ctx.moveTo(0,0);
+      ctx.lineTo(Math.cos(a)*5,Math.sin(a)*leftR*.88);
       ctx.stroke();
     }
     ctx.restore();
 
-    // Target outline.
+    // Target profile remains stable over spinning wood.
     ctx.strokeStyle="#201411";
     ctx.lineWidth=2.3;
     ctx.lineJoin="round";
@@ -499,13 +544,6 @@
       ctx.lineTo(x,y);
     }
     ctx.closePath();
-    ctx.stroke();
-
-    // End caps give a slight lathe-cylinder cue without perspective.
-    ctx.strokeStyle="rgba(61,28,11,.45)";
-    ctx.lineWidth=1.2;
-    ctx.beginPath();
-    ctx.ellipse(g.blankLeft,g.centerY,6,MODEL.radii[0]*scale,0,0,Math.PI*2);
     ctx.stroke();
   }
 
@@ -676,7 +714,12 @@
     const desiredY=p.y-MODEL.grabOffsetY;
 
     MODEL.toolX=clamp((desiredX-g.blankLeft)/g.blankLengthPx,0,1);
-    MODEL.handleY=clamp(desiredY,g.toolMinHandleY,g.toolHomeY+28);
+
+    // Keep handle fully above the fixed control dock, while allowing it
+    // to advance far enough to reach the entire target profile.
+    const maxHandleY=Math.min(g.toolHomeY+28,g.h-132);
+    const minHandleY=g.centerY+TOOL_VISUAL.tipToHandleCenterPx*TOOL_VISUAL.scale+7;
+    MODEL.handleY=clamp(desiredY,minHandleY,maxHandleY);
     updateReadout();
   });
 
