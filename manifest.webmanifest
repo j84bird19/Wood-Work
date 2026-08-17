@@ -3,7 +3,7 @@
   "short_name": "WoodPrep",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#171717",
+  "background_color": "#0d0f10",
+  "theme_color": "#111315",
   "orientation": "portrait-primary"
 }

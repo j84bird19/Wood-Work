@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <meta name="theme-color" content="#171717" />
+  <meta name="theme-color" content="#111315" />
   <title>WoodPrep Lathe</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
@@ -22,20 +22,40 @@
       <canvas id="latheCanvas" aria-label="Wood turning simulator"></canvas>
 
       <div class="readout">
-        <div><span>RPM</span><strong id="rpmReadout">900</strong></div>
-        <div><span>Position</span><strong id="positionReadout">0.0 in</strong></div>
+        <div><span>Position</span><strong id="positionReadout">9.0 in</strong></div>
         <div><span>Diameter</span><strong id="diameterReadout">4.00 in</strong></div>
       </div>
     </section>
 
     <section class="controls">
-      <label class="control">
-        <span>Lathe speed</span>
-        <input id="rpmSlider" type="range" min="200" max="3200" step="50" value="900">
-      </label>
+      <div class="speed-panel">
+        <div>
+          <div class="control-title">LATHE SPEED</div>
+          <div class="speed-help">Touch and turn the knob</div>
+        </div>
+
+        <div class="knob-wrap">
+          <div class="scale-ring" aria-hidden="true"></div>
+          <button id="rpmKnob"
+                  class="rpm-knob"
+                  type="button"
+                  aria-label="Lathe speed"
+                  aria-valuemin="200"
+                  aria-valuemax="3200"
+                  aria-valuenow="900">
+            <span id="knobPointer" class="knob-pointer"></span>
+            <span class="knob-center">
+              <strong id="rpmReadout">900</strong>
+              <small>RPM</small>
+            </span>
+          </button>
+          <span class="knob-min">200</span>
+          <span class="knob-max">3200</span>
+        </div>
+      </div>
 
       <div class="hint">
-        Drag the chisel left/right to move along the blank. Drag upward into the wood to cut deeper.
+        Grab the wooden chisel handle. Move left/right to travel along the blank. Push the handle toward the wood to cut.
       </div>
     </section>
   </main>

@@ -1,40 +1,27 @@
-# WoodPrep Lathe — v0.1.1 Flat GitHub Build
+# WoodPrep Lathe — v0.1.3
 
-This repository intentionally uses a **flat root structure** so every file can be selected and uploaded directly from a phone. There are **no project folders**.
+Flat GitHub-ready build. There are **no folders inside the ZIP**.
 
-## Upload these files directly to the GitHub repository root
+Upload every file directly to the repository root.
 
-- `index.html`
-- `styles.css`
-- `app.js`
-- `manifest.webmanifest`
-- `sw.js`
-- `README.md`
-- `BUILD_NOTES.md`
+## v0.1.3 changes
 
-## Run
+- More realistic benchtop lathe graphics
+- Cast-metal headstock and tailstock
+- Chuck/spindle and live center
+- Twin bed rails and machine base
+- Metal tool rest with post
+- Improved lighting, shadows, wood shading, and grain
+- Lathe speed slider replaced by a true rotary knob
+- Touch/click and rotate the knob clockwise/counterclockwise
+- RPM range remains 200–3200 in 50 RPM increments
+- Existing handle-only chisel control preserved
+- Existing cutting/radius logic preserved
 
-For GitHub Pages:
-1. Upload all files to the repository root.
-2. Open **Settings → Pages**.
-3. Deploy from the main branch/root.
-4. Open the generated Pages URL on Android.
+## Core behavior
 
-## v0.1.1 scope
-
-This first subsystem is intentionally small:
-- continuous lathe rotation
-- 200–3200 RPM control
-- high-resolution 1D radius profile for the blank
-- one gouge-like cutting profile
-- touch/pointer movement
-- real material removal (radius values only decrease)
-- live position and diameter readouts
-- reset blank
-- installable PWA shell
-
-No levels, points, unlocking, ads, or game progression.
-
-## Architecture note
-
-The wood is stored as a sequence of radius samples along its length. A tool contact modifies only the affected samples. This is the same core data model we can later revolve into a true 3D mesh while preserving the cutting logic.
+- No game levels, points, unlocking, rewards, or ads
+- Touch the chisel handle to control the tool
+- Push toward the workpiece to cut
+- Side-to-side handle motion moves along the blank
+- Material removal is persistent until Reset blank is pressed

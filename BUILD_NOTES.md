@@ -1,28 +1,24 @@
-# Build Notes — v0.1.1
+# Build Notes — v0.1.3
 
-## Corrected packaging rule
+## Requested changes
 
-Bird requested GitHub-ready ZIPs with **no folders inside the ZIP**. This build follows that rule exactly: every project file is at ZIP root.
+1. Make lathe graphics more realistic.
+2. Replace speed slider with a rotary knob that turns to increase/decrease speed.
 
-## Current subsystem
+## Locked / preserved
 
-CORE CUTTING ENGINE — prototype
-
-Do not add sanding, wood species, finish coats, stencils, or multiple chisels until the basic cut behavior is accepted.
+- Handle-only chisel grab control
+- Operator-side chisel view
+- Radius-profile cutting engine
+- Material cannot grow back
+- Live diameter and position readouts
 
 ## Test
 
-1. Open the app.
-2. Change RPM and confirm the grain motion changes speed.
-3. Touch/drag along the wood.
-4. Push upward into the blank to remove material.
-5. Move across the piece while maintaining depth.
-6. Release and confirm removed material does not return.
-7. Reset the blank.
-8. Confirm position and diameter readouts update.
-
-## Next after approval
-
-- lock core profile/cutting logic
-- add 6–8 chisel geometries
-- add side-to-side and up/down chisel angles
+1. Confirm the speed control is now a knob rather than a slider.
+2. Touch the knob and rotate clockwise: RPM should increase.
+3. Rotate counterclockwise: RPM should decrease.
+4. Confirm visible wood rotation changes with RPM.
+5. Confirm the lathe now visibly includes headstock, chuck/spindle, tailstock/live center, bed rails, and tool rest.
+6. Confirm only the chisel handle can grab/move the chisel.
+7. Confirm cutting still works as before.
