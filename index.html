@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#171717" />
+  <title>WoodPrep Lathe</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main id="app">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">WOODPREP</div>
+        <h1>Lathe Practice</h1>
+      </div>
+      <button id="resetBtn" class="ghost">Reset blank</button>
+    </header>
+
+    <section class="stage">
+      <canvas id="latheCanvas" aria-label="Wood turning simulator"></canvas>
+
+      <div class="readout">
+        <div><span>RPM</span><strong id="rpmReadout">900</strong></div>
+        <div><span>Position</span><strong id="positionReadout">0.0 in</strong></div>
+        <div><span>Diameter</span><strong id="diameterReadout">4.00 in</strong></div>
+      </div>
+    </section>
+
+    <section class="controls">
+      <label class="control">
+        <span>Lathe speed</span>
+        <input id="rpmSlider" type="range" min="200" max="3200" step="50" value="900">
+      </label>
+
+      <div class="hint">
+        Drag the chisel left/right to move along the blank. Drag upward into the wood to cut deeper.
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
