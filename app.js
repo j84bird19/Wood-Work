@@ -1,164 +1,298 @@
 (() => {
   "use strict";
 
-  const canvas = document.getElementById("latheCanvas");
-  const ctx = canvas.getContext("2d", { alpha: false });
-
+  const canvas = document.getElementById("simCanvas");
+  const ctx = canvas.getContext("2d",{alpha:false});
   const resetBtn = document.getElementById("resetBtn");
+  const positionReadout = document.getElementById("positionReadout");
+  const diameterReadout = document.getElementById("diameterReadout");
   const rpmKnob = document.getElementById("rpmKnob");
   const knobPointer = document.getElementById("knobPointer");
   const rpmReadout = document.getElementById("rpmReadout");
-  const positionReadout = document.getElementById("positionReadout");
-  const diameterReadout = document.getElementById("diameterReadout");
+  const toolButtons = [...document.querySelectorAll(".tool-btn")];
 
   const MODEL = {
     lengthIn: 18,
     blankDiameterIn: 4,
-    sampleCount: 320,
+    samples: 360,
     radii: [],
+    cutAmount: [],
     rpm: 900,
     rotation: 0,
-    chiselX: 0.5,
-    chiselDepth: 0,
-    dragging: false,
-    pointerId: null,
-    handleX: 0,
+    toolX: .50,
     handleY: 0,
+    homeHandleY: 0,
+    draggingTool: false,
+    toolPointerId: null,
     grabOffsetX: 0,
     grabOffsetY: 0,
-    lastTime: performance.now()
+    selectedTool: "roughing",
+    lastTime: performance.now(),
+    particles: []
   };
 
-  const CHISEL = {
-    widthIn: 0.42,
-    maxDepthIn: 1.75,
-    cutRate: 5.25
+  const TOOL_DEFS = {
+    roughing: {
+      label:"Roughing Gouge",
+      widthIn:.70,
+      biteIn:.075,
+      rate:.78,
+      influence:"round"
+    },
+    skew: {
+      label:"Skew Chisel",
+      widthIn:.50,
+      biteIn:.055,
+      rate:.58,
+      influence:"skew"
+    },
+    parting: {
+      label:"Parting Tool",
+      widthIn:.20,
+      biteIn:.045,
+      rate:.46,
+      influence:"flat"
+    }
   };
 
   const KNOB = {
-    min: 200,
-    max: 3200,
-    startDeg: -135,
-    sweepDeg: 270,
-    dragging: false,
-    pointerId: null
+    min:200,max:3200,startDeg:-135,sweepDeg:270,
+    dragging:false,pointerId:null
   };
 
-  function clamp(v, a, b) {
-    return Math.max(a, Math.min(b, v));
-  }
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function lerp(a,b,t){ return a+(b-a)*t; }
 
-  function resetBlank() {
-    MODEL.radii = new Array(MODEL.sampleCount).fill(MODEL.blankDiameterIn / 2);
-    MODEL.chiselX = 0.5;
-    MODEL.chiselDepth = 0;
-    MODEL.dragging = false;
-    MODEL.pointerId = null;
-    centerHandle();
-    updateReadout();
-  }
+  function resize(){
+    const r=canvas.getBoundingClientRect();
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.max(1,Math.round(r.width*dpr));
+    canvas.height=Math.max(1,Math.round(r.height*dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
 
-  function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.max(1, Math.round(rect.width * dpr));
-    canvas.height = Math.max(1, Math.round(rect.height * dpr));
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (!MODEL.dragging) centerHandle();
-  }
-
-  function stageGeometry() {
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
-    const left = w * 0.13;
-    const right = w * 0.87;
-    const cx = (left + right) / 2;
-    const cy = h * 0.34;
-    const maxRadiusPx = Math.min(h * 0.145, (right - left) * 0.15);
-    const toolRestY = cy + maxRadiusPx + Math.max(34, h * 0.055);
-    const handleHomeY = Math.min(h - 70, toolRestY + Math.max(145, h * 0.29));
-    return {
-      w, h, left, right, cx, cy, maxRadiusPx,
-      lengthPx: right - left, toolRestY, handleHomeY
-    };
-  }
-
-  function centerHandle() {
-    const g = stageGeometry();
-    MODEL.handleX = g.cx;
-    MODEL.handleY = g.handleHomeY;
-  }
-
-  function radiusAtNormalizedX(t) {
-    const idx = clamp(Math.round(t * (MODEL.sampleCount - 1)), 0, MODEL.sampleCount - 1);
-    return MODEL.radii[idx];
-  }
-
-  function toolPose() {
-    const g = stageGeometry();
-    const hx = clamp(MODEL.handleX || g.cx, g.left - 22, g.right + 22);
-    const minHandleY = g.toolRestY + 88;
-    const hy = clamp(MODEL.handleY || g.handleHomeY, minHandleY, g.h - 48);
-
-    const chiselX = clamp((hx - g.left) / g.lengthPx, 0, 1);
-    const radius = radiusAtNormalizedX(chiselX);
-    const scale = g.maxRadiusPx / (MODEL.blankDiameterIn / 2);
-    const woodBottomY = g.cy + radius * scale;
-
-    const feed = clamp(
-      (g.handleHomeY - hy) / Math.max(1, g.handleHomeY - minHandleY),
-      0, 1
-    );
-
-    const freeTipY = woodBottomY + 22;
-    const maxTipY = woodBottomY - CHISEL.maxDepthIn * scale;
-    const tipY = freeTipY + (maxTipY - freeTipY) * feed;
-    const tipX = g.left + chiselX * g.lengthPx;
-    const depthIn = clamp(Math.max(0, woodBottomY - tipY) / scale, 0, CHISEL.maxDepthIn);
-
-    return { g, handleX:hx, handleY:hy, tipX, tipY, chiselX, depthIn, scale, woodBottomY };
-  }
-
-  function applyCut(dt) {
-    if (!MODEL.dragging || MODEL.chiselDepth <= 0) return;
-
-    const centerIndex = MODEL.chiselX * (MODEL.sampleCount - 1);
-    const samplesPerIn = (MODEL.sampleCount - 1) / MODEL.lengthIn;
-    const halfWidth = Math.max(1, (CHISEL.widthIn * samplesPerIn) / 2);
-
-    const desiredRadius = Math.max(
-      0.12,
-      MODEL.blankDiameterIn / 2 - MODEL.chiselDepth
-    );
-
-    const removalScale = CHISEL.cutRate * dt * (0.5 + MODEL.rpm / 1800);
-    const start = Math.max(0, Math.floor(centerIndex - halfWidth * 1.6));
-    const end = Math.min(MODEL.sampleCount - 1, Math.ceil(centerIndex + halfWidth * 1.6));
-
-    for (let i = start; i <= end; i++) {
-      const d = Math.abs(i - centerIndex) / halfWidth;
-      let influence = 0;
-
-      if (d <= 1) influence = Math.sqrt(Math.max(0, 1 - d * d));
-      else if (d < 1.6) influence = (1.6 - d) / 0.6 * 0.12;
-
-      if (influence <= 0) continue;
-
-      const target =
-        MODEL.blankDiameterIn / 2 -
-        (MODEL.blankDiameterIn / 2 - desiredRadius) * influence;
-
-      if (MODEL.radii[i] > target) {
-        MODEL.radii[i] = Math.max(
-          target,
-          MODEL.radii[i] - removalScale * influence
-        );
-      }
+    const g=geom();
+    if(!MODEL.draggingTool){
+      MODEL.toolX=.50;
+      MODEL.homeHandleY=g.toolHomeY;
+      MODEL.handleY=g.toolHomeY;
     }
   }
 
-  function roundRect(x, y, w, h, r, fillStyle, strokeStyle) {
-    const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2);
+  function geom(){
+    const w=canvas.clientWidth,h=canvas.clientHeight;
+
+    // Layout intentionally mirrors the reference interaction:
+    // large blank across upper-middle, open work area below, upright tool from bottom.
+    const workLeft=w*.055;
+    const workRight=w*.945;
+    const workTop=h*.10;
+    const workBottom=h*.58;
+
+    const blankLeft=w*.085;
+    const blankRight=w*.915;
+    const centerY=h*.315;
+    const maxRadiusPx=Math.min(h*.145,(blankRight-blankLeft)*.23);
+
+    const toolHomeY=h*.725;
+    const toolMinHandleY=centerY+maxRadiusPx+66;
+
+    return {
+      w,h,workLeft,workRight,workTop,workBottom,
+      blankLeft,blankRight,blankLengthPx:blankRight-blankLeft,
+      centerY,maxRadiusPx,toolHomeY,toolMinHandleY
+    };
+  }
+
+  function targetRadius(t){
+    // Default spindle target for the prep simulator.
+    // This will later be replaced by uploaded SVG/profile stencils.
+    const x=t;
+
+    // left bulb / foot
+    if(x<.13){
+      const u=x/.13;
+      return lerp(1.42,1.20,Math.sin(u*Math.PI/2));
+    }
+
+    // left narrowing shoulder
+    if(x<.36){
+      const u=(x-.13)/.23;
+      return lerp(1.20,.82,u);
+    }
+
+    // central neck / bead region
+    if(x<.47){
+      const u=(x-.36)/.11;
+      return lerp(.82,.64,Math.sin(u*Math.PI/2));
+    }
+    if(x<.58){
+      const u=(x-.47)/.11;
+      return .64 + .08*Math.sin(u*Math.PI);
+    }
+
+    // long right taper
+    if(x<.83){
+      const u=(x-.58)/.25;
+      return lerp(.72,.47,u);
+    }
+
+    // small end knob
+    if(x<.94){
+      const u=(x-.83)/.11;
+      return .47 + .18*Math.sin(u*Math.PI);
+    }
+
+    return .48;
+  }
+
+  function resetBlank(){
+    MODEL.radii=new Array(MODEL.samples).fill(MODEL.blankDiameterIn/2);
+    MODEL.cutAmount=new Array(MODEL.samples).fill(0);
+    MODEL.particles=[];
+    const g=geom();
+    MODEL.toolX=.50;
+    MODEL.homeHandleY=g.toolHomeY;
+    MODEL.handleY=g.toolHomeY;
+    MODEL.draggingTool=false;
+    MODEL.toolPointerId=null;
+    updateReadout();
+  }
+
+  function sampleIndex(t){
+    return clamp(Math.round(t*(MODEL.samples-1)),0,MODEL.samples-1);
+  }
+
+  function radiusAt(t){
+    return MODEL.radii[sampleIndex(t)];
+  }
+
+  function toolState(){
+    const g=geom();
+    const tool=TOOL_DEFS[MODEL.selectedTool];
+
+    const xNorm=clamp(MODEL.toolX,0,1);
+    const idx=sampleIndex(xNorm);
+    const currentRadius=MODEL.radii[idx];
+    const scale=g.maxRadiusPx/(MODEL.blankDiameterIn/2);
+    const surfaceBottomY=g.centerY+currentRadius*scale;
+
+    // The user's HANDLE position asks for a cut depth.
+    // The visible cutting edge never gets teleported inside the workpiece.
+    const minHandle=g.toolMinHandleY;
+    const home=g.toolHomeY;
+    const feed=clamp((home-MODEL.handleY)/(home-minHandle),0,1);
+
+    const desiredRadius=lerp(MODEL.blankDiameterIn/2,.16,feed);
+
+    let tipY;
+    let contact=false;
+
+    if(!MODEL.draggingTool || feed<.015){
+      tipY=surfaceBottomY+18;
+    }else if(desiredRadius < currentRadius){
+      contact=true;
+      tipY=surfaceBottomY + 1 - Math.min(tool.biteIn,currentRadius-desiredRadius)*scale;
+    }else{
+      tipY=g.centerY+desiredRadius*scale;
+    }
+
+    const tipX=g.blankLeft+xNorm*g.blankLengthPx;
+    const handleX=tipX;
+
+    return {
+      g,tool,xNorm,idx,currentRadius,desiredRadius,feed,
+      surfaceBottomY,tipX,tipY,handleX,handleY:MODEL.handleY,contact,scale
+    };
+  }
+
+  function toolInfluence(d,kind){
+    const a=Math.abs(d);
+    if(a>1)return 0;
+
+    if(kind==="flat"){
+      return a<=.78?1:(1-a)/.22;
+    }
+    if(kind==="skew"){
+      // asymmetric edge like a skew passing across the profile
+      const base=Math.max(0,1-a);
+      return d<0 ? Math.min(1,base*1.35) : base*.78;
+    }
+    return Math.sqrt(Math.max(0,1-a*a));
+  }
+
+  function cut(dt){
+    const s=toolState();
+    if(!MODEL.draggingTool || !s.contact)return;
+
+    const center=s.xNorm*(MODEL.samples-1);
+    const samplesPerIn=(MODEL.samples-1)/MODEL.lengthIn;
+    const half=Math.max(1,(s.tool.widthIn*samplesPerIn)/2);
+    const start=Math.max(0,Math.floor(center-half*1.25));
+    const end=Math.min(MODEL.samples-1,Math.ceil(center+half*1.25));
+
+    const rpmFactor=clamp(.55+MODEL.rpm/2800,.60,1.55);
+    const frameRemoval=s.tool.rate*rpmFactor*dt;
+
+    let removedTotal=0;
+
+    for(let i=start;i<=end;i++){
+      const d=(i-center)/half;
+      const influence=toolInfluence(d,s.tool.influence);
+      if(influence<=0)continue;
+
+      // Desired radius is shaped by the cutting edge.
+      const localDesired=
+        (MODEL.blankDiameterIn/2) -
+        ((MODEL.blankDiameterIn/2)-s.desiredRadius)*influence;
+
+      if(MODEL.radii[i]>localDesired){
+        const demand=MODEL.radii[i]-localDesired;
+        const maxBite=s.tool.biteIn*influence;
+        const remove=Math.min(demand,maxBite,frameRemoval*influence);
+        MODEL.radii[i]-=remove;
+        MODEL.cutAmount[i]=Math.max(MODEL.cutAmount[i],(MODEL.blankDiameterIn/2)-MODEL.radii[i]);
+        removedTotal+=remove;
+      }
+    }
+
+    if(removedTotal>.0005){
+      spawnChips(s,Math.min(6,1+Math.floor(removedTotal*70)));
+    }
+  }
+
+  function spawnChips(s,count){
+    for(let i=0;i<count;i++){
+      MODEL.particles.push({
+        x:s.tipX+(Math.random()-.5)*13,
+        y:s.surfaceBottomY+Math.random()*5,
+        vx:(Math.random()-.5)*105,
+        vy:35+Math.random()*150,
+        rot:Math.random()*Math.PI,
+        vr:(Math.random()-.5)*8,
+        size:2+Math.random()*5,
+        life:.45+Math.random()*.75,
+        age:0,
+        tone:Math.random()
+      });
+    }
+    if(MODEL.particles.length>180){
+      MODEL.particles.splice(0,MODEL.particles.length-180);
+    }
+  }
+
+  function updateParticles(dt){
+    for(const p of MODEL.particles){
+      p.age+=dt;
+      p.x+=p.vx*dt;
+      p.y+=p.vy*dt;
+      p.vy+=190*dt;
+      p.rot+=p.vr*dt;
+    }
+    MODEL.particles=MODEL.particles.filter(p=>p.age<p.life);
+  }
+
+  function roundRect(x,y,w,h,r,fill,stroke,lineWidth=1){
+    const rr=Math.min(r,Math.abs(w)/2,Math.abs(h)/2);
     ctx.beginPath();
     ctx.moveTo(x+rr,y);
     ctx.arcTo(x+w,y,x+w,y+h,rr);
@@ -166,346 +300,395 @@
     ctx.arcTo(x,y+h,x,y,rr);
     ctx.arcTo(x,y,x+w,y,rr);
     ctx.closePath();
-    if (fillStyle) { ctx.fillStyle = fillStyle; ctx.fill(); }
-    if (strokeStyle) { ctx.strokeStyle = strokeStyle; ctx.stroke(); }
+    if(fill){ctx.fillStyle=fill;ctx.fill();}
+    if(stroke){ctx.lineWidth=lineWidth;ctx.strokeStyle=stroke;ctx.stroke();}
   }
 
-  function drawMachine(g) {
-    // workshop background
-    const bg = ctx.createLinearGradient(0, 0, 0, g.h);
-    bg.addColorStop(0, "#37322d");
-    bg.addColorStop(.48, "#211e1b");
-    bg.addColorStop(1, "#121314");
-    ctx.fillStyle = bg;
+  function drawBackground(g){
+    // Warm blurred workshop feeling without copying any original game artwork.
+    const wall=ctx.createLinearGradient(0,0,0,g.h);
+    wall.addColorStop(0,"#c99868");
+    wall.addColorStop(.28,"#d7b184");
+    wall.addColorStop(.29,"#85603e");
+    wall.addColorStop(1,"#b8a691");
+    ctx.fillStyle=wall;
     ctx.fillRect(0,0,g.w,g.h);
 
-    // back wall highlight
-    const glow = ctx.createRadialGradient(g.cx,g.cy-30,20,g.cx,g.cy,g.w*.65);
-    glow.addColorStop(0,"rgba(205,176,136,.13)");
-    glow.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=glow; ctx.fillRect(0,0,g.w,g.h);
+    // soft shop shapes
+    ctx.save();
+    ctx.globalAlpha=.25;
+    ctx.filter="blur(5px)";
+    ctx.fillStyle="#6f4a2e";
+    ctx.fillRect(-20,g.h*.02,g.w+40,18);
+    ctx.fillRect(26,g.h*.055,g.w*.25,42);
+    ctx.fillRect(g.w*.62,g.h*.045,g.w*.28,34);
+    ctx.fillStyle="#9a724d";
+    ctx.fillRect(0,g.h*.56,g.w,g.h*.10);
+    ctx.restore();
+    ctx.filter="none";
 
-    // base casting
-    roundRect(g.left-66, g.cy+g.maxRadiusPx+48, g.lengthPx+132, 57, 11, "#202427");
-    roundRect(g.left-49, g.cy+g.maxRadiusPx+54, g.lengthPx+98, 12, 5, "#555b5f");
-    roundRect(g.left-49, g.cy+g.maxRadiusPx+74, g.lengthPx+98, 11, 5, "#3d4246");
+    // teal cutting mat / machine guard like the visual role in the reference
+    const matX=g.workLeft,matY=g.workTop;
+    const matW=g.workRight-g.workLeft,matH=g.workBottom-g.workTop;
+    roundRect(matX,matY,matW,matH,7,"#0ca69e","#057e78",4);
 
-    // headstock body
-    const hsX=g.left-69, hsY=g.cy-g.maxRadiusPx-50;
-    const hsGrad=ctx.createLinearGradient(hsX,hsY,hsX+63,hsY);
-    hsGrad.addColorStop(0,"#15181a"); hsGrad.addColorStop(.45,"#464b4e"); hsGrad.addColorStop(1,"#25292c");
-    roundRect(hsX,hsY,62,g.maxRadiusPx*2+100,12,hsGrad,"#62676a");
+    // inner mat
+    roundRect(matX+8,matY+8,matW-16,matH-16,4,"#19b8ad","#6be1d6",2);
 
-    // headstock cap / motor bump
-    roundRect(hsX+7,hsY-18,48,30,10,"#2a2e31","#5a6064");
-    ctx.fillStyle="#0d0f10";
-    ctx.beginPath(); ctx.arc(hsX+31,hsY+35,12,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle="#777d81";
-    ctx.beginPath(); ctx.arc(hsX+31,hsY+35,5,0,Math.PI*2); ctx.fill();
-
-    // tailstock
-    const tsX=g.right+8, tsY=g.cy-g.maxRadiusPx-33;
-    const tsGrad=ctx.createLinearGradient(tsX,tsY,tsX+55,tsY);
-    tsGrad.addColorStop(0,"#373c3f"); tsGrad.addColorStop(.55,"#181b1d"); tsGrad.addColorStop(1,"#505558");
-    roundRect(tsX,tsY,53,g.maxRadiusPx*2+68,10,tsGrad,"#62676a");
-    roundRect(tsX+31,g.cy-13,44,26,7,"#303538","#646a6e");
-    ctx.strokeStyle="#777c80"; ctx.lineWidth=4;
-    ctx.beginPath(); ctx.moveTo(tsX+53,g.cy); ctx.lineTo(tsX+77,g.cy); ctx.stroke();
-
-    // spindle + chuck
-    const chuckX=g.left-5;
-    ctx.fillStyle="#1a1d1f";
-    ctx.fillRect(chuckX-22,g.cy-22,22,44);
-    ctx.fillStyle="#62686b";
-    ctx.beginPath(); ctx.arc(chuckX-11,g.cy,20,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle="#24282a";
-    ctx.beginPath(); ctx.arc(chuckX-11,g.cy,13,0,Math.PI*2); ctx.fill();
-
-    // live center
-    ctx.fillStyle="#8b9194";
-    ctx.beginPath();
-    ctx.moveTo(g.right+7,g.cy-8);
-    ctx.lineTo(g.right-11,g.cy);
-    ctx.lineTo(g.right+7,g.cy+8);
-    ctx.closePath();ctx.fill();
-
-    // feet
-    roundRect(g.left-55,g.cy+g.maxRadiusPx+101,42,17,4,"#111315");
-    roundRect(g.right+14,g.cy+g.maxRadiusPx+101,42,17,4,"#111315");
-  }
-
-  function drawWood(g) {
-    const scale = g.maxRadiusPx / (MODEL.blankDiameterIn / 2);
-
+    // grid
     ctx.save();
     ctx.beginPath();
-    for (let i=0;i<MODEL.sampleCount;i++) {
-      const t=i/(MODEL.sampleCount-1);
-      const x=g.left+t*g.lengthPx;
-      const y=g.cy-MODEL.radii[i]*scale;
+    ctx.rect(matX+10,matY+10,matW-20,matH-20);
+    ctx.clip();
+    ctx.strokeStyle="rgba(197,255,246,.28)";
+    ctx.lineWidth=1;
+    const grid=35;
+    for(let x=matX+10;x<=matX+matW-10;x+=grid){
+      ctx.beginPath();ctx.moveTo(x,matY+10);ctx.lineTo(x,matY+matH-10);ctx.stroke();
+    }
+    for(let y=matY+10;y<=matY+matH-10;y+=grid){
+      ctx.beginPath();ctx.moveTo(matX+10,y);ctx.lineTo(matX+matW-10,y);ctx.stroke();
+    }
+    ctx.restore();
+
+    // benchtop below mat
+    ctx.fillStyle="#8d725d";
+    ctx.fillRect(0,g.workBottom+9,g.w,g.h-g.workBottom-9);
+    ctx.fillStyle="rgba(255,255,255,.10)";
+    ctx.fillRect(0,g.workBottom+10,g.w,2);
+  }
+
+  function currentProfilePath(g){
+    const scale=g.maxRadiusPx/(MODEL.blankDiameterIn/2);
+    ctx.beginPath();
+    for(let i=0;i<MODEL.samples;i++){
+      const t=i/(MODEL.samples-1);
+      const x=g.blankLeft+t*g.blankLengthPx;
+      const y=g.centerY-MODEL.radii[i]*scale;
       if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
     }
-    for(let i=MODEL.sampleCount-1;i>=0;i--){
-      const t=i/(MODEL.sampleCount-1);
-      const x=g.left+t*g.lengthPx;
-      const y=g.cy+MODEL.radii[i]*scale;
+    for(let i=MODEL.samples-1;i>=0;i--){
+      const t=i/(MODEL.samples-1);
+      const x=g.blankLeft+t*g.blankLengthPx;
+      const y=g.centerY+MODEL.radii[i]*scale;
       ctx.lineTo(x,y);
     }
     ctx.closePath();
+  }
 
-    const woodGrad=ctx.createLinearGradient(0,g.cy-g.maxRadiusPx,0,g.cy+g.maxRadiusPx);
-    woodGrad.addColorStop(0,"#6d3b1d");
-    woodGrad.addColorStop(.16,"#a96734");
-    woodGrad.addColorStop(.42,"#d49a58");
-    woodGrad.addColorStop(.55,"#bb753a");
-    woodGrad.addColorStop(.73,"#8a4c26");
-    woodGrad.addColorStop(1,"#4d2817");
-    ctx.fillStyle=woodGrad;ctx.fill();
+  function drawWood(g){
+    const scale=g.maxRadiusPx/(MODEL.blankDiameterIn/2);
 
+    // Smooth freshly cut wood under everything.
+    currentProfilePath(g);
+    const fresh=ctx.createLinearGradient(0,g.centerY-g.maxRadiusPx,0,g.centerY+g.maxRadiusPx);
+    fresh.addColorStop(0,"#9c5924");
+    fresh.addColorStop(.16,"#d3873a");
+    fresh.addColorStop(.47,"#eda858");
+    fresh.addColorStop(.55,"#c97931");
+    fresh.addColorStop(.83,"#dc9143");
+    fresh.addColorStop(1,"#8d491f");
+    ctx.fillStyle=fresh;
+    ctx.fill();
+
+    // Lathe rotation bands / turned wood lines.
+    ctx.save();
+    currentProfilePath(g);
     ctx.clip();
-
-    // moving fine grain
-    const spacing=16;
-    const offset=(MODEL.rotation*18)%spacing;
     ctx.globalAlpha=.22;
-    for(let x=g.left-spacing+offset;x<g.right+spacing;x+=spacing){
-      const grain=ctx.createLinearGradient(x,0,x+8,0);
-      grain.addColorStop(0,"rgba(74,34,15,0)");
-      grain.addColorStop(.5,"rgba(63,29,13,.7)");
-      grain.addColorStop(1,"rgba(74,34,15,0)");
-      ctx.strokeStyle=grain;ctx.lineWidth=2;
+    const bandOffset=(MODEL.rotation*8)%12;
+    for(let x=g.blankLeft-12+bandOffset;x<g.blankRight+12;x+=12){
+      ctx.fillStyle="rgba(92,42,16,.32)";
+      ctx.fillRect(x,g.centerY-g.maxRadiusPx*1.2,1.3,g.maxRadiusPx*2.4);
+    }
+    ctx.restore();
+
+    // Rough outer wood remains only where that X sample has not been carved much.
+    // This creates the same visual logic as the reference: rough blank disappears,
+    // revealing the smoother turned form underneath.
+    ctx.save();
+    for(let i=0;i<MODEL.samples-1;i++){
+      const t0=i/(MODEL.samples-1),t1=(i+1)/(MODEL.samples-1);
+      const x0=g.blankLeft+t0*g.blankLengthPx;
+      const x1=g.blankLeft+t1*g.blankLengthPx;
+      const cut=MODEL.cutAmount[i];
+      const opacity=clamp(1-cut/.055,0,1);
+      if(opacity<=0)continue;
+
+      const r=MODEL.radii[i]*scale;
+      const top=g.centerY-r;
+      const bottom=g.centerY+r;
+
+      const seed=(i*37)%17;
+      const bark=seed<4?"#6e2f24":seed<8?"#8d4030":seed<12?"#5d2a22":"#9b4935";
+      ctx.globalAlpha=.95*opacity;
+      ctx.fillStyle=bark;
+      ctx.fillRect(x0-1,top,(x1-x0)+2,bottom-top);
+
+      // bark streak
+      if(i%10===0){
+        ctx.globalAlpha=.25*opacity;
+        ctx.fillStyle="#2d1715";
+        ctx.fillRect(x0,top+(seed/17)*(bottom-top),Math.max(2,x1-x0+1),2);
+      }
+    }
+    ctx.restore();
+
+    // A few dark irregular bark veins.
+    ctx.save();
+    currentProfilePath(g);
+    ctx.clip();
+    ctx.globalAlpha=.45;
+    ctx.strokeStyle="#2a1716";
+    ctx.lineWidth=2;
+    for(let line=0;line<5;line++){
       ctx.beginPath();
-      ctx.moveTo(x,g.cy-g.maxRadiusPx*1.2);
-      ctx.bezierCurveTo(x+8,g.cy-20,x-5,g.cy+22,x+4,g.cy+g.maxRadiusPx*1.2);
+      for(let j=0;j<=18;j++){
+        const x=g.blankLeft+(j/18)*g.blankLengthPx;
+        const y=g.centerY-g.maxRadiusPx*.60+line*g.maxRadiusPx*.28+
+          Math.sin(j*.78+line*1.9)*7;
+        if(j===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
       ctx.stroke();
     }
-
-    // glossy rotating highlight
-    ctx.globalAlpha=.18;
-    const hi=ctx.createLinearGradient(0,g.cy-g.maxRadiusPx,0,g.cy+g.maxRadiusPx);
-    hi.addColorStop(0,"rgba(255,255,255,0)");
-    hi.addColorStop(.28,"rgba(255,255,255,.75)");
-    hi.addColorStop(.46,"rgba(255,255,255,.08)");
-    hi.addColorStop(1,"rgba(255,255,255,0)");
-    ctx.fillStyle=hi;ctx.fillRect(g.left,g.cy-g.maxRadiusPx,g.lengthPx,g.maxRadiusPx*2);
     ctx.restore();
 
-    // edge shadow
-    ctx.strokeStyle="rgba(30,14,7,.8)";
-    ctx.lineWidth=1.4;
+    // Target outline.
+    ctx.strokeStyle="#201411";
+    ctx.lineWidth=2.3;
+    ctx.lineJoin="round";
     ctx.beginPath();
-    for(let i=0;i<MODEL.sampleCount;i++){
-      const t=i/(MODEL.sampleCount-1);
-      const x=g.left+t*g.lengthPx;
-      const y=g.cy+MODEL.radii[i]*scale;
+    for(let i=0;i<=180;i++){
+      const t=i/180;
+      const x=g.blankLeft+t*g.blankLengthPx;
+      const y=g.centerY-targetRadius(t)*scale;
       if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
     }
+    for(let i=180;i>=0;i--){
+      const t=i/180;
+      const x=g.blankLeft+t*g.blankLengthPx;
+      const y=g.centerY+targetRadius(t)*scale;
+      ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+
+    // End caps give a slight lathe-cylinder cue without perspective.
+    ctx.strokeStyle="rgba(61,28,11,.45)";
+    ctx.lineWidth=1.2;
+    ctx.beginPath();
+    ctx.ellipse(g.blankLeft,g.centerY,6,MODEL.radii[0]*scale,0,0,Math.PI*2);
     ctx.stroke();
   }
 
-  function drawToolRest(g) {
-    // post
-    const p=toolPose();
-    roundRect(p.tipX-8,g.toolRestY+3,16,56,5,"#272b2e","#5a6064");
-
-    // actual tool rest bar
-    const restGrad=ctx.createLinearGradient(0,g.toolRestY-8,0,g.toolRestY+8);
-    restGrad.addColorStop(0,"#9ca1a4");
-    restGrad.addColorStop(.4,"#575d61");
-    restGrad.addColorStop(1,"#25292b");
-    roundRect(g.left-12,g.toolRestY-7,g.lengthPx+24,14,6,restGrad,"#777d80");
-  }
-
-  function drawOperatorChisel() {
-    const p=toolPose();
-
-    // shaft
-    const shaftGrad=ctx.createLinearGradient(p.handleX,p.handleY,p.tipX,p.tipY);
-    shaftGrad.addColorStop(0,"#4e5356");
-    shaftGrad.addColorStop(.45,"#c5c9cb");
-    shaftGrad.addColorStop(.72,"#7b8286");
-    shaftGrad.addColorStop(1,"#e0e2e3");
-
-    ctx.strokeStyle=shaftGrad;
-    ctx.lineCap="round";
-    ctx.lineWidth=13;
-    ctx.beginPath();
-    ctx.moveTo(p.handleX,p.handleY-31);
-    ctx.lineTo(p.tipX,p.tipY+4);
-    ctx.stroke();
-
-    // tip
-    const vx=p.tipX-p.handleX;
-    const vy=p.tipY-(p.handleY-31);
-    const len=Math.max(1,Math.hypot(vx,vy));
-    const nx=-vy/len, ny=vx/len, ux=vx/len, uy=vy/len;
-
-    ctx.fillStyle="#e3e5e6";
-    ctx.beginPath();
-    ctx.moveTo(p.tipX+nx*8,p.tipY+ny*8);
-    ctx.lineTo(p.tipX-nx*8,p.tipY-ny*8);
-    ctx.lineTo(p.tipX+ux*13,p.tipY+uy*13);
-    ctx.closePath();ctx.fill();
-
-    // handle
-    ctx.save();
-    ctx.translate(p.handleX,p.handleY);
-    const angle=Math.atan2(p.tipY-(p.handleY-31),p.tipX-p.handleX);
-    ctx.rotate(angle+Math.PI/2);
-
-    const hg=ctx.createLinearGradient(-28,0,28,0);
-    hg.addColorStop(0,"#3e2113");
-    hg.addColorStop(.24,"#7e4827");
-    hg.addColorStop(.55,"#b36c36");
-    hg.addColorStop(.78,"#75401f");
-    hg.addColorStop(1,"#321a10");
-    roundRect(-28,-58,56,116,22,hg,"#28170e");
-
-    // ferrule
-    const fg=ctx.createLinearGradient(-18,0,18,0);
-    fg.addColorStop(0,"#555a5d");fg.addColorStop(.5,"#c6c9ca");fg.addColorStop(1,"#414649");
-    roundRect(-17,-64,34,14,5,fg,"#202326");
-
-    if(MODEL.dragging){
-      ctx.strokeStyle="rgba(255,255,255,.35)";
-      ctx.lineWidth=3;
-      ctx.beginPath();ctx.ellipse(0,0,39,68,0,0,Math.PI*2);ctx.stroke();
-    }
-    ctx.restore();
-
-    if(!MODEL.dragging){
-      ctx.fillStyle="rgba(255,255,255,.55)";
-      ctx.font="600 11px system-ui";
-      ctx.textAlign="center";
-      ctx.fillText("GRAB HANDLE",p.handleX,Math.min(p.g.h-9,p.handleY+79));
+  function drawParticles(){
+    for(const p of MODEL.particles){
+      const a=clamp(1-p.age/p.life,0,1);
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha=a;
+      ctx.fillStyle=p.tone>.55?"#e6a052":p.tone>.25?"#b86631":"#7f3e23";
+      roundRect(-p.size*.55,-p.size*.22,p.size*1.1,p.size*.44,1,ctx.fillStyle);
+      ctx.restore();
     }
   }
 
-  function drawLathe() {
-    const g=stageGeometry();
-    drawMachine(g);
+  function drawTool(){
+    const s=toolState();
+    const x=s.tipX;
+    const tipY=s.tipY;
+    const hY=s.handleY;
+
+    // Tool body stays vertical like the reference.
+    const handleTop=hY-36;
+    const shaftBottom=handleTop+4;
+
+    // steel shaft
+    const steel=ctx.createLinearGradient(x-11,0,x+11,0);
+    steel.addColorStop(0,"#737a7e");
+    steel.addColorStop(.28,"#dfe4e6");
+    steel.addColorStop(.63,"#f7f8f8");
+    steel.addColorStop(1,"#6f767a");
+
+    ctx.fillStyle=steel;
+
+    if(MODEL.selectedTool==="roughing"){
+      // broad slightly flared gouge
+      ctx.beginPath();
+      ctx.moveTo(x-11,tipY+5);
+      ctx.lineTo(x-8,shaftBottom);
+      ctx.lineTo(x+8,shaftBottom);
+      ctx.lineTo(x+11,tipY+5);
+      ctx.closePath();ctx.fill();
+
+      ctx.fillStyle="#d8dde0";
+      ctx.beginPath();
+      ctx.ellipse(x,tipY+4,11,4.5,0,Math.PI,Math.PI*2);
+      ctx.fill();
+    }else if(MODEL.selectedTool==="skew"){
+      ctx.beginPath();
+      ctx.moveTo(x-10,tipY+9);
+      ctx.lineTo(x+10,tipY);
+      ctx.lineTo(x+8,shaftBottom);
+      ctx.lineTo(x-8,shaftBottom);
+      ctx.closePath();ctx.fill();
+    }else{
+      roundRect(x-4,tipY,8,shaftBottom-tipY,2,steel,"#565c60",1);
+      ctx.fillStyle="#edf0f1";
+      ctx.fillRect(x-4,tipY,8,4);
+    }
+
+    // brass ferrule
+    const ferruleY=hY-43;
+    const brass=ctx.createLinearGradient(x-15,0,x+15,0);
+    brass.addColorStop(0,"#6e4312");
+    brass.addColorStop(.28,"#dcae45");
+    brass.addColorStop(.58,"#ffe17b");
+    brass.addColorStop(1,"#7b4a13");
+    roundRect(x-14,ferruleY,28,15,5,brass,"#57340e",1);
+
+    // handle — explicit grab area
+    const handleGrad=ctx.createLinearGradient(x-18,0,x+18,0);
+    handleGrad.addColorStop(0,"#713914");
+    handleGrad.addColorStop(.27,"#c77427");
+    handleGrad.addColorStop(.56,"#f3a84b");
+    handleGrad.addColorStop(.78,"#a8571e");
+    handleGrad.addColorStop(1,"#5e2e11");
+
+    ctx.beginPath();
+    ctx.moveTo(x-13,hY-31);
+    ctx.quadraticCurveTo(x-18,hY-20,x-16,hY+5);
+    ctx.quadraticCurveTo(x-13,hY+24,x-10,hY+31);
+    ctx.quadraticCurveTo(x,hY+37,x+10,hY+31);
+    ctx.quadraticCurveTo(x+13,hY+24,x+16,hY+5);
+    ctx.quadraticCurveTo(x+18,hY-20,x+13,hY-31);
+    ctx.closePath();
+    ctx.fillStyle=handleGrad;ctx.fill();
+    ctx.strokeStyle="#4c250e";ctx.lineWidth=2;ctx.stroke();
+
+    // handle end cap
+    ctx.fillStyle="#e4b34c";
+    ctx.beginPath();
+    ctx.ellipse(x,hY+31,10,4,0,0,Math.PI*2);ctx.fill();
+
+    if(MODEL.draggingTool){
+      ctx.strokeStyle="rgba(202,255,93,.75)";
+      ctx.lineWidth=2;
+      ctx.beginPath();ctx.ellipse(x,hY,23,45,0,0,Math.PI*2);ctx.stroke();
+    }
+  }
+
+  function draw(){
+    const g=geom();
+    drawBackground(g);
     drawWood(g);
-    drawToolRest(g);
-    drawOperatorChisel();
+    drawParticles();
+    drawTool();
   }
 
-  function localPointer(e) {
+  function pointerLocal(e){
     const r=canvas.getBoundingClientRect();
-    return {x:e.clientX-r.left,y:e.clientY-r.top};
+    return{x:e.clientX-r.left,y:e.clientY-r.top};
   }
 
-  function isOnHandle(x,y){
-    const p=toolPose();
-    const dx=(x-p.handleX)/44;
-    const dy=(y-p.handleY)/74;
+  function handleHit(x,y){
+    const s=toolState();
+    const dx=(x-s.handleX)/27;
+    const dy=(y-s.handleY)/48;
     return dx*dx+dy*dy<=1;
   }
 
-  function moveHandleFromPointer(e){
-    const pos=localPointer(e);
-    const g=stageGeometry();
-    MODEL.handleX=clamp(pos.x-MODEL.grabOffsetX,g.left-22,g.right+22);
-    MODEL.handleY=clamp(pos.y-MODEL.grabOffsetY,g.toolRestY+88,g.h-48);
-    const p=toolPose();
-    MODEL.chiselX=p.chiselX;
-    MODEL.chiselDepth=p.depthIn;
-    updateReadout();
-  }
-
   canvas.addEventListener("pointerdown",e=>{
-    if(MODEL.dragging)return;
-    const pos=localPointer(e);
-    if(!isOnHandle(pos.x,pos.y))return;
-    const p=toolPose();
-    MODEL.dragging=true;
-    MODEL.pointerId=e.pointerId;
-    MODEL.grabOffsetX=pos.x-p.handleX;
-    MODEL.grabOffsetY=pos.y-p.handleY;
+    if(MODEL.draggingTool)return;
+    const p=pointerLocal(e);
+    if(!handleHit(p.x,p.y))return;
+
+    const s=toolState();
+    MODEL.draggingTool=true;
+    MODEL.toolPointerId=e.pointerId;
+    MODEL.grabOffsetX=p.x-s.handleX;
+    MODEL.grabOffsetY=p.y-s.handleY;
     canvas.setPointerCapture(e.pointerId);
   });
 
   canvas.addEventListener("pointermove",e=>{
-    if(!MODEL.dragging||e.pointerId!==MODEL.pointerId)return;
-    moveHandleFromPointer(e);
+    if(!MODEL.draggingTool || e.pointerId!==MODEL.toolPointerId)return;
+    const p=pointerLocal(e);
+    const g=geom();
+
+    const desiredX=p.x-MODEL.grabOffsetX;
+    const desiredY=p.y-MODEL.grabOffsetY;
+
+    MODEL.toolX=clamp((desiredX-g.blankLeft)/g.blankLengthPx,0,1);
+    MODEL.handleY=clamp(desiredY,g.toolMinHandleY,g.toolHomeY+28);
+    updateReadout();
   });
 
-  function endToolPointer(e){
-    if(!MODEL.dragging)return;
-    if(e.pointerId!==undefined&&e.pointerId!==MODEL.pointerId)return;
-    MODEL.dragging=false;
-    MODEL.pointerId=null;
-    MODEL.chiselDepth=0;
-    if(e.pointerId!==undefined&&canvas.hasPointerCapture(e.pointerId)){
+  function endTool(e){
+    if(!MODEL.draggingTool)return;
+    if(e.pointerId!==undefined && e.pointerId!==MODEL.toolPointerId)return;
+    MODEL.draggingTool=false;
+    MODEL.toolPointerId=null;
+
+    if(e.pointerId!==undefined && canvas.hasPointerCapture(e.pointerId)){
       canvas.releasePointerCapture(e.pointerId);
     }
-    updateReadout();
   }
 
-  canvas.addEventListener("pointerup",endToolPointer);
-  canvas.addEventListener("pointercancel",endToolPointer);
+  canvas.addEventListener("pointerup",endTool);
+  canvas.addEventListener("pointercancel",endTool);
 
-  function rpmToPointerDeg(rpm){
+  toolButtons.forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      MODEL.selectedTool=btn.dataset.tool;
+      toolButtons.forEach(b=>b.classList.toggle("selected",b===btn));
+    });
+  });
+
+  function rpmToDeg(rpm){
     const t=(rpm-KNOB.min)/(KNOB.max-KNOB.min);
     return KNOB.startDeg+t*KNOB.sweepDeg;
   }
 
-  function setRpm(rpm){
-    MODEL.rpm=Math.round(clamp(rpm,KNOB.min,KNOB.max)/50)*50;
-    rpmReadout.textContent=String(MODEL.rpm);
-    rpmKnob.setAttribute("aria-valuenow",String(MODEL.rpm));
-    knobPointer.style.transform=
-      `translateX(-50%) rotate(${rpmToPointerDeg(MODEL.rpm)}deg)`;
+  function setRpm(v){
+    MODEL.rpm=Math.round(clamp(v,KNOB.min,KNOB.max)/50)*50;
+    rpmReadout.textContent=MODEL.rpm;
+    rpmKnob.setAttribute("aria-valuenow",MODEL.rpm);
+    knobPointer.style.transform=`translateX(-50%) rotate(${rpmToDeg(MODEL.rpm)}deg)`;
   }
 
-  function knobPoint(e){
+  function knobValue(e){
     const r=rpmKnob.getBoundingClientRect();
-    return {
-      x:e.clientX-(r.left+r.width/2),
-      y:e.clientY-(r.top+r.height/2)
-    };
-  }
-
-  function knobAngleToRpm(e){
-    const p=knobPoint(e);
-    let deg=Math.atan2(p.y,p.x)*180/Math.PI+90;
+    const dx=e.clientX-(r.left+r.width/2);
+    const dy=e.clientY-(r.top+r.height/2);
+    let deg=Math.atan2(dy,dx)*180/Math.PI+90;
     if(deg<0)deg+=360;
-
-    // Convert screen angle to the 270-degree sweep:
-    // 225° screen angle = min, then clockwise to 135° = max.
     let sweep=deg-225;
     if(sweep<0)sweep+=360;
-
-    // Dead zone is the lower 90 degrees. Snap to nearest endpoint there.
     if(sweep>270){
-      const toMin=360-sweep;
-      const toMax=sweep-270;
-      sweep=toMin<toMax?0:270;
+      sweep=(360-sweep)<(sweep-270)?0:270;
     }
-
-    const t=clamp(sweep/270,0,1);
-    return KNOB.min+t*(KNOB.max-KNOB.min);
+    return KNOB.min+(sweep/270)*(KNOB.max-KNOB.min);
   }
 
   rpmKnob.addEventListener("pointerdown",e=>{
     e.preventDefault();
-    KNOB.dragging=true;
-    KNOB.pointerId=e.pointerId;
+    KNOB.dragging=true;KNOB.pointerId=e.pointerId;
     rpmKnob.setPointerCapture(e.pointerId);
-    setRpm(knobAngleToRpm(e));
+    setRpm(knobValue(e));
   });
 
   rpmKnob.addEventListener("pointermove",e=>{
-    if(!KNOB.dragging||e.pointerId!==KNOB.pointerId)return;
-    e.preventDefault();
-    setRpm(knobAngleToRpm(e));
+    if(!KNOB.dragging || e.pointerId!==KNOB.pointerId)return;
+    e.preventDefault();setRpm(knobValue(e));
   });
 
   function endKnob(e){
     if(!KNOB.dragging)return;
-    if(e.pointerId!==undefined&&e.pointerId!==KNOB.pointerId)return;
-    KNOB.dragging=false;
-    KNOB.pointerId=null;
-    if(e.pointerId!==undefined&&rpmKnob.hasPointerCapture(e.pointerId)){
+    if(e.pointerId!==undefined && e.pointerId!==KNOB.pointerId)return;
+    KNOB.dragging=false;KNOB.pointerId=null;
+    if(e.pointerId!==undefined && rpmKnob.hasPointerCapture(e.pointerId)){
       rpmKnob.releasePointerCapture(e.pointerId);
     }
   }
@@ -513,22 +696,13 @@
   rpmKnob.addEventListener("pointerup",endKnob);
   rpmKnob.addEventListener("pointercancel",endKnob);
 
-  rpmKnob.addEventListener("keydown",e=>{
-    if(e.key==="ArrowRight"||e.key==="ArrowUp"){
-      e.preventDefault();setRpm(MODEL.rpm+50);
-    }else if(e.key==="ArrowLeft"||e.key==="ArrowDown"){
-      e.preventDefault();setRpm(MODEL.rpm-50);
-    }
-  });
-
   function updateReadout(){
-    positionReadout.textContent=`${(MODEL.chiselX*MODEL.lengthIn).toFixed(1)} in`;
-    diameterReadout.textContent=`${(radiusAtNormalizedX(MODEL.chiselX)*2).toFixed(2)} in`;
-    rpmReadout.textContent=String(MODEL.rpm);
+    positionReadout.textContent=`${(MODEL.toolX*MODEL.lengthIn).toFixed(1)}"`;
+    diameterReadout.textContent=`${(radiusAt(MODEL.toolX)*2).toFixed(2)}"`;
   }
 
   resetBtn.addEventListener("click",resetBlank);
-  window.addEventListener("resize",resizeCanvas);
+  window.addEventListener("resize",resize);
 
   function frame(now){
     const dt=Math.min(.033,(now-MODEL.lastTime)/1000);
@@ -536,13 +710,11 @@
 
     MODEL.rotation+=(MODEL.rpm/60)*Math.PI*2*dt;
 
-    const p=toolPose();
-    MODEL.chiselX=p.chiselX;
-    MODEL.chiselDepth=MODEL.dragging?p.depthIn:0;
-
-    applyCut(dt);
+    cut(dt);
+    updateParticles(dt);
     updateReadout();
-    drawLathe();
+    draw();
+
     requestAnimationFrame(frame);
   }
 
@@ -552,8 +724,8 @@
     });
   }
 
+  resize();
   resetBlank();
-  resizeCanvas();
   setRpm(900);
   requestAnimationFrame(frame);
 })();

@@ -1,65 +1,63 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-  <meta name="theme-color" content="#111315" />
-  <title>WoodPrep Lathe</title>
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#191511">
+  <title>WoodPrep Turning Simulator</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main id="app">
     <header class="topbar">
       <div>
         <div class="eyebrow">WOODPREP</div>
-        <h1>Lathe Practice</h1>
+        <h1>Turning Simulator</h1>
       </div>
-      <button id="resetBtn" class="ghost">Reset blank</button>
+      <button id="resetBtn" class="reset-btn" type="button" aria-label="Reset blank">↻</button>
     </header>
 
-    <section class="stage">
-      <canvas id="latheCanvas" aria-label="Wood turning simulator"></canvas>
+    <section class="sim-wrap">
+      <canvas id="simCanvas" aria-label="Wood turning simulator"></canvas>
 
-      <div class="readout">
-        <div><span>Position</span><strong id="positionReadout">9.0 in</strong></div>
-        <div><span>Diameter</span><strong id="diameterReadout">4.00 in</strong></div>
+      <div class="measure-strip">
+        <div><span>Position</span><strong id="positionReadout">9.0"</strong></div>
+        <div><span>Diameter</span><strong id="diameterReadout">4.00"</strong></div>
+      </div>
+
+      <div class="bottom-ui">
+        <div class="tool-panel">
+          <div class="panel-label">CHISELS</div>
+          <div class="tool-tray">
+            <button class="tool-btn selected" data-tool="roughing" aria-label="Roughing gouge">
+              <span class="mini-tool roughing"></span>
+            </button>
+            <button class="tool-btn" data-tool="skew" aria-label="Skew chisel">
+              <span class="mini-tool skew"></span>
+            </button>
+            <button class="tool-btn" data-tool="parting" aria-label="Parting tool">
+              <span class="mini-tool parting"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="speed-box">
+          <div class="panel-label">RPM</div>
+          <div class="knob-wrap">
+            <button id="rpmKnob" class="rpm-knob" type="button"
+                    aria-label="Lathe speed"
+                    aria-valuemin="200"
+                    aria-valuemax="3200"
+                    aria-valuenow="900">
+              <span id="knobPointer" class="knob-pointer"></span>
+              <span class="knob-center"><strong id="rpmReadout">900</strong></span>
+            </button>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section class="controls">
-      <div class="speed-panel">
-        <div>
-          <div class="control-title">LATHE SPEED</div>
-          <div class="speed-help">Touch and turn the knob</div>
-        </div>
-
-        <div class="knob-wrap">
-          <div class="scale-ring" aria-hidden="true"></div>
-          <button id="rpmKnob"
-                  class="rpm-knob"
-                  type="button"
-                  aria-label="Lathe speed"
-                  aria-valuemin="200"
-                  aria-valuemax="3200"
-                  aria-valuenow="900">
-            <span id="knobPointer" class="knob-pointer"></span>
-            <span class="knob-center">
-              <strong id="rpmReadout">900</strong>
-              <small>RPM</small>
-            </span>
-          </button>
-          <span class="knob-min">200</span>
-          <span class="knob-max">3200</span>
-        </div>
-      </div>
-
-      <div class="hint">
-        Grab the wooden chisel handle. Move left/right to travel along the blank. Push the handle toward the wood to cut.
-      </div>
-    </section>
-  </main>
-
-  <script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

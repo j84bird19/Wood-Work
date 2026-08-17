@@ -1,9 +1,9 @@
 {
-  "name": "WoodPrep Lathe",
+  "name": "WoodPrep Turning Simulator",
   "short_name": "WoodPrep",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0d0f10",
-  "theme_color": "#111315",
+  "background_color": "#17130f",
+  "theme_color": "#191511",
   "orientation": "portrait-primary"
 }
