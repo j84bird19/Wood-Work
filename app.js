@@ -53,16 +53,62 @@
   };
 
   const CHISELS = [
-    {id:"roughing", name:"Roughing Gouge", widthIn:.72, shape:"round"},
-    {id:"spindle", name:"Spindle Gouge", widthIn:.48, shape:"round"},
-    {id:"bowl", name:"Bowl Gouge", widthIn:.58, shape:"round"},
-    {id:"skew", name:"Skew Chisel", widthIn:.46, shape:"skew"},
-    {id:"parting", name:"Parting Tool", widthIn:.18, shape:"flat"},
-    {id:"scraper", name:"Round Scraper", widthIn:.55, shape:"flat"}
+    {
+      id:"roughing", name:"Roughing Gouge", widthIn:.72, shape:"round", visual:"roughing",
+      desc:"Wide fluted cutter for quickly rounding a square blank and removing bulk material."
+    },
+    {
+      id:"spindle", name:"Spindle Gouge", widthIn:.48, shape:"round", visual:"spindle",
+      desc:"Narrow rounded flute for beads, coves, transitions, and fine spindle detail."
+    },
+    {
+      id:"bowl", name:"Bowl Gouge", widthIn:.58, shape:"round", visual:"bowl",
+      desc:"Deep-fluted gouge with a stronger edge for controlled curved cuts."
+    },
+    {
+      id:"skew", name:"Skew Chisel", widthIn:.46, shape:"skew", visual:"skew",
+      desc:"Angled cutting edge for planing cuts, V-cuts, beads, and very clean surfaces."
+    },
+    {
+      id:"parting", name:"Parting Tool", widthIn:.18, shape:"flat", visual:"parting",
+      desc:"Thin straight cutter for grooves, sizing cuts, and separating sections."
+    },
+    {
+      id:"scraper", name:"Round-Nose Scraper", widthIn:.55, shape:"flat", visual:"scraper",
+      desc:"Rounded scraper for smoothing curves and refining areas that are difficult to gouge."
+    }
   ];
 
-  const SANDPAPERS = ["P80","P120","P150","P180","P220","P320","P400","P600","P800","P1000","P1500","P2000","P3000"];
-  const FINISHES = ["Natural","Honey","Golden Oak","Walnut","Espresso","Charcoal","Blue","Teal","Ochre","Ivory","Forest Green","Custom"];
+  const SANDPAPERS = [
+    {id:"P80", grit:80, tone:"#4c2d2b", desc:"Very coarse — heavy stock removal and leveling deep tool marks."},
+    {id:"P120", grit:120, tone:"#5a3431", desc:"Coarse — initial sanding after turning and removing obvious ridges."},
+    {id:"P150", grit:150, tone:"#633936", desc:"Coarse/medium — blends rough sanding scratches before refining."},
+    {id:"P180", grit:180, tone:"#6b3e39", desc:"Medium — general smoothing and removing lighter tool marks."},
+    {id:"P220", grit:220, tone:"#75443e", desc:"Medium/fine — prepares the surface for finer sanding or many finishes."},
+    {id:"P320", grit:320, tone:"#80504a", desc:"Fine — smooth finishing pass before stain, paint, or clear coat."},
+    {id:"P400", grit:400, tone:"#8b5a54", desc:"Very fine — final bare-wood smoothing and between-coat leveling."},
+    {id:"P600", grit:600, tone:"#95645d", desc:"Extra fine — refining finish coats and reducing very small scratches."},
+    {id:"P800", grit:800, tone:"#a17169", desc:"Polishing grit — smooths clear coats and high-build finishes."},
+    {id:"P1000", grit:1000, tone:"#aa7b73", desc:"Fine polishing — levels tiny finish defects before higher grits."},
+    {id:"P1500", grit:1500, tone:"#b48a82", desc:"Very fine polishing — begins producing a low-gloss polished surface."},
+    {id:"P2000", grit:2000, tone:"#bd9990", desc:"Ultra fine — refines clear finishes before final polish or buffing."},
+    {id:"P3000", grit:3000, tone:"#c7aaa0", desc:"Micro-fine — final polishing prep for a very smooth finished surface."}
+  ];
+
+  const FINISHES = [
+    {id:"Natural", kind:"Stain", color:"#c89353", desc:"Natural wood tone with minimal color shift and visible grain."},
+    {id:"Honey", kind:"Stain", color:"#c67a24", desc:"Warm amber stain that strengthens golden and orange wood tones."},
+    {id:"Golden Oak", kind:"Stain", color:"#b66d22", desc:"Classic golden-brown stain with medium warmth and strong grain visibility."},
+    {id:"Walnut", kind:"Stain", color:"#76451f", desc:"Medium-dark brown stain for a traditional walnut appearance."},
+    {id:"Espresso", kind:"Stain", color:"#452719", desc:"Very dark brown stain while still allowing some wood grain to show."},
+    {id:"Charcoal", kind:"Paint", color:"#3e4549", desc:"Opaque charcoal gray paint for a modern dark finish."},
+    {id:"Blue", kind:"Paint", color:"#2d6099", desc:"Opaque medium blue paint."},
+    {id:"Teal", kind:"Paint", color:"#236e78", desc:"Opaque blue-green paint with a deep teal tone."},
+    {id:"Ochre", kind:"Paint", color:"#cd8a1e", desc:"Opaque warm ochre / golden yellow paint."},
+    {id:"Ivory", kind:"Paint", color:"#ddd3bf", desc:"Opaque warm off-white paint."},
+    {id:"Forest Green", kind:"Paint", color:"#315d49", desc:"Opaque deep forest green paint."},
+    {id:"Custom", kind:"Paint", color:"linear-gradient(135deg,#e34d59,#e9bb37,#58a86a,#3d77c2,#8c51b8)", desc:"Custom paint color — color picker support will be connected later."}
+  ];
 
   const TOOL_VISUAL = {
     scale: 1.12,
@@ -622,42 +668,97 @@
 
   function renderSandPopup(){
     els.modalTitle.textContent="Sandpaper";
-    els.modalBody.innerHTML=`<div class="option-grid">${
-      SANDPAPERS.map(g=>`<button class="option ${g===STATE.activeSandpaper?"selected":""}" data-sand="${g}">${g}<small>Select grit</small></button>`).join("")
-    }</div>`;
+    els.modalBody.innerHTML=`
+      <div class="visual-catalog sand-catalog">
+        ${SANDPAPERS.map(item=>`
+          <button class="visual-option sand-option ${item.id===STATE.activeSandpaper?"selected":""}"
+                  data-sand="${item.id}" type="button">
+            <span class="option-image sand-image" style="--sand-tone:${item.tone}">
+              <i class="sand-disc"></i>
+              <i class="sand-grain"></i>
+              <b>${item.id}</b>
+            </span>
+            <span class="option-copy">
+              <strong>${item.id} — ${item.grit} Grit</strong>
+              <small>${item.desc}</small>
+            </span>
+          </button>
+        `).join("")}
+      </div>`;
+
     els.modalBody.querySelectorAll("[data-sand]").forEach(btn=>{
       btn.addEventListener("click",()=>{
         STATE.activeSandpaper=btn.dataset.sand;
         STATE.activeMode="SANDPAPER";
-        updateLabels();closePopup();
+        updateLabels();
+        closePopup();
       });
     });
   }
 
   function renderChiselPopup(){
     els.modalTitle.textContent="Chisels";
-    els.modalBody.innerHTML=`<div class="option-grid">${
-      CHISELS.map(c=>`<button class="option ${c.id===STATE.activeChisel?"selected":""}" data-chisel="${c.id}">${c.name}<small>${c.widthIn.toFixed(2)}" cutter</small></button>`).join("")
-    }</div>`;
+    els.modalBody.innerHTML=`
+      <div class="visual-catalog chisel-catalog">
+        ${CHISELS.map(c=>`
+          <button class="visual-option chisel-option ${c.id===STATE.activeChisel?"selected":""}"
+                  data-chisel="${c.id}" type="button">
+            <span class="option-image chisel-image">
+              <i class="tip-diagram ${c.visual}">
+                <span class="tip-metal"></span>
+                <span class="tip-edge"></span>
+              </i>
+            </span>
+            <span class="option-copy">
+              <strong>${c.name}</strong>
+              <small>${c.desc}</small>
+              <em>Approx. cutter width: ${c.widthIn.toFixed(2)}"</em>
+            </span>
+          </button>
+        `).join("")}
+      </div>`;
+
     els.modalBody.querySelectorAll("[data-chisel]").forEach(btn=>{
       btn.addEventListener("click",()=>{
         STATE.activeChisel=btn.dataset.chisel;
         STATE.activeMode="CHISEL";
-        updateLabels();closePopup();
+        updateLabels();
+        closePopup();
       });
     });
   }
 
   function renderFinishPopup(){
     els.modalTitle.textContent="Paint / Stain";
-    els.modalBody.innerHTML=`<div class="option-grid">${
-      FINISHES.map(f=>`<button class="option ${f===STATE.activeFinish?"selected":""}" data-finish="${f}">${f}<small>Select finish</small></button>`).join("")
-    }</div>`;
+    els.modalBody.innerHTML=`
+      <div class="visual-catalog finish-catalog">
+        ${FINISHES.map(f=>{
+          const bg = f.color.startsWith("linear-gradient")
+            ? f.color
+            : f.kind==="Stain"
+              ? `linear-gradient(rgba(255,255,255,.08),rgba(35,15,6,.13)), repeating-linear-gradient(90deg,rgba(72,31,8,.20) 0 2px,transparent 2px 9px), ${f.color}`
+              : f.color;
+          return `
+            <button class="visual-option finish-option ${f.id===STATE.activeFinish?"selected":""}"
+                    data-finish="${f.id}" type="button">
+              <span class="option-image finish-image ${f.kind.toLowerCase()}">
+                <i class="finish-swatch" style="background:${bg}"></i>
+                <b>${f.kind}</b>
+              </span>
+              <span class="option-copy">
+                <strong>${f.id}</strong>
+                <small>${f.desc}</small>
+              </span>
+            </button>`;
+        }).join("")}
+      </div>`;
+
     els.modalBody.querySelectorAll("[data-finish]").forEach(btn=>{
       btn.addEventListener("click",()=>{
         STATE.activeFinish=btn.dataset.finish;
         STATE.activeMode="FINISH";
-        updateLabels();closePopup();
+        updateLabels();
+        closePopup();
       });
     });
   }
@@ -689,8 +790,10 @@
 
     // visible active cards
     document.querySelectorAll(".sand-card").forEach(c=>c.classList.remove("active"));
-    const sandIndex=Math.max(0,["P120","P180","P220","P320","P400","P600","P800","P1000"].indexOf(STATE.activeSandpaper));
+    const mainSandIds=["P120","P180","P220","P320","P400","P600","P800","P1000"];
     const sandCards=document.querySelectorAll(".sand-card");
+    let sandIndex=mainSandIds.indexOf(STATE.activeSandpaper);
+    if(sandIndex<0) sandIndex=0;
     if(sandCards[sandIndex]) sandCards[sandIndex].classList.add("active");
 
     document.querySelectorAll(".rack-tool").forEach(c=>c.classList.remove("active"));

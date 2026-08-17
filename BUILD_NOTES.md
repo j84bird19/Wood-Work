@@ -50,3 +50,30 @@ Tap/click:
 - [ ] Chisel remains fixed-size while moving
 - [ ] Wood visibly rotates
 - [ ] Workpiece cuts at chisel contact
+
+
+## v0.3.2 — Popup Presentation Change
+
+### Locked layout preserved
+No main-screen layout or placement changes were made.
+
+### Selection-popup requirement
+Replacement popups must show the user what they are selecting, not just a text label.
+
+Required visible information:
+
+- Sandpaper: grit texture/color + grit number + use description
+- Chisels: enlarged tip/profile + tool name + purpose
+- Paint/Stain: representative finish color + type + name + description
+
+### Acceptance
+- [ ] Sandpaper popup contains visual grit cards
+- [ ] Chisel popup shows visually different tip shapes
+- [ ] Stain popup choices visibly retain wood-grain texture
+- [ ] Paint choices look opaque and color-specific
+- [ ] Every visual choice includes a name
+- [ ] Every visual choice includes a useful short description
+- [ ] Selected option is visibly highlighted
+- [ ] Selecting a replacement option closes the popup
+- [ ] Main-screen active label updates
+- [ ] v0.3.1 layout remains unchanged

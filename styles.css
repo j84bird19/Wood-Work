@@ -446,3 +446,209 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
   .active-caption{display:none}
   .app-nav button{width:28px;height:26px}
 }
+
+
+/* ===== v0.3.2 VISUAL SELECTION CATALOGS ===== */
+.modal-body{
+  overflow:hidden;
+}
+.visual-catalog{
+  height:100%;
+  overflow:auto;
+  display:grid;
+  gap:10px;
+  padding:2px 3px 8px;
+  align-content:start;
+}
+.visual-catalog::-webkit-scrollbar{height:8px;width:8px}
+.visual-catalog::-webkit-scrollbar-thumb{background:#65401f;border-radius:8px}
+
+.sand-catalog{grid-template-columns:repeat(4,minmax(155px,1fr))}
+.chisel-catalog{grid-template-columns:repeat(3,minmax(210px,1fr))}
+.finish-catalog{grid-template-columns:repeat(4,minmax(155px,1fr))}
+
+.visual-option{
+  min-height:142px;
+  border:3px solid #6d431f;
+  border-radius:12px;
+  padding:8px;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.18),transparent 28%),
+    linear-gradient(#d5a66f,#a66b35);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,235,201,.46),
+    0 3px 7px rgba(50,25,10,.24);
+  display:grid;
+  grid-template-rows:minmax(80px,1fr) auto;
+  gap:7px;
+  color:#2b180d;
+  text-align:left;
+  cursor:pointer;
+}
+.visual-option.selected{
+  border-color:#547b13;
+  outline:4px solid #a8df37;
+  outline-offset:-5px;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.20),transparent 28%),
+    linear-gradient(#e2bf78,#b5893c);
+}
+.visual-option:active{transform:scale(.975)}
+.option-image{
+  position:relative;
+  min-height:82px;
+  border-radius:8px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border:1px solid rgba(75,42,18,.6);
+  background:rgba(255,237,204,.33);
+}
+.option-copy{display:grid;gap:3px}
+.option-copy strong{
+  font-size:clamp(.7rem,1.2vw,1rem);
+  line-height:1.08;
+}
+.option-copy small{
+  font-size:clamp(.56rem,.9vw,.75rem);
+  line-height:1.18;
+  color:#4e2e1a;
+}
+.option-copy em{
+  font-style:normal;
+  font-size:clamp(.5rem,.75vw,.68rem);
+  color:#69411f;
+  font-weight:700;
+}
+
+/* Sandpaper images */
+.sand-image{
+  background:
+    linear-gradient(145deg,#d2ae86,#b9865c);
+}
+.sand-disc{
+  position:absolute;
+  width:68%;aspect-ratio:2/1;
+  bottom:13%;
+  border-radius:100% 100% 6% 6%;
+  background:
+    radial-gradient(circle at 20% 24%,rgba(255,255,255,.13) 0 1px,transparent 1.2px),
+    radial-gradient(circle at 70% 64%,rgba(25,9,7,.28) 0 1px,transparent 1.2px),
+    var(--sand-tone);
+  background-size:6px 6px,5px 5px,auto;
+  border:2px solid rgba(55,23,20,.65);
+  box-shadow:0 5px 7px rgba(46,22,12,.28);
+}
+.sand-grain{
+  position:absolute;
+  width:59%;aspect-ratio:2/1;
+  bottom:19%;
+  border-radius:100% 100% 0 0;
+  background:
+    radial-gradient(circle,rgba(255,255,255,.30) 0 .8px,transparent 1px);
+  background-size:4px 4px;
+  opacity:.62;
+}
+.sand-image b{
+  position:absolute;
+  top:7px;left:8px;
+  padding:3px 6px;
+  border-radius:5px;
+  background:rgba(48,26,15,.82);
+  color:#fff;
+  font-size:.72rem;
+}
+
+/* Chisel tip illustrations */
+.chisel-image{
+  background:
+    radial-gradient(circle at 50% 15%,rgba(255,255,255,.8),transparent 23%),
+    linear-gradient(#d7d9d9,#8d9294);
+}
+.tip-diagram{
+  position:relative;
+  width:72%;
+  height:75%;
+  display:block;
+}
+.tip-metal{
+  position:absolute;
+  left:50%;
+  bottom:4%;
+  width:22%;
+  height:78%;
+  transform:translateX(-50%);
+  background:linear-gradient(90deg,#676e72,#d9dedf 24%,#fff 51%,#939a9e 78%,#5d6468);
+  border:1px solid #565c60;
+  box-shadow:0 3px 5px rgba(0,0,0,.18);
+}
+.tip-edge{
+  position:absolute;
+  left:50%;
+  top:2%;
+  transform:translateX(-50%);
+  background:linear-gradient(90deg,#676e72,#f1f4f5 48%,#6e7478);
+  border:1px solid #555b5f;
+}
+.tip-diagram.roughing .tip-metal{width:28%;border-radius:8px 8px 2px 2px}
+.tip-diagram.roughing .tip-edge{
+  width:32%;height:18%;
+  border-radius:50% 50% 12% 12%;
+}
+.tip-diagram.spindle .tip-metal{width:20%;border-radius:10px 10px 2px 2px}
+.tip-diagram.spindle .tip-edge{
+  width:24%;height:22%;
+  border-radius:50% 50% 18% 18%;
+}
+.tip-diagram.bowl .tip-metal{width:26%;border-radius:11px 11px 2px 2px}
+.tip-diagram.bowl .tip-edge{
+  width:30%;height:24%;
+  border-radius:55% 55% 24% 24%;
+}
+.tip-diagram.skew .tip-metal{width:27%}
+.tip-diagram.skew .tip-edge{
+  width:34%;height:17%;
+  clip-path:polygon(0 50%,100% 0,100% 72%,0 100%);
+}
+.tip-diagram.parting .tip-metal{width:9%}
+.tip-diagram.parting .tip-edge{width:12%;height:14%;border-radius:1px}
+.tip-diagram.scraper .tip-metal{width:31%}
+.tip-diagram.scraper .tip-edge{
+  width:35%;height:16%;
+  border-radius:50% 50% 4px 4px;
+}
+
+/* Finish images */
+.finish-image{
+  background:linear-gradient(#d9b787,#b88a56);
+}
+.finish-swatch{
+  width:75%;height:72%;
+  border-radius:5px;
+  border:3px solid #4f341f;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.25),
+    0 5px 8px rgba(54,30,14,.28);
+}
+.finish-image.stain .finish-swatch{
+  background-size:auto,auto,auto!important;
+}
+.finish-image b{
+  position:absolute;
+  left:8px;bottom:7px;
+  padding:3px 6px;
+  border-radius:5px;
+  background:rgba(40,23,14,.83);
+  color:#f6eadc;
+  font-size:.6rem;
+  letter-spacing:.06em;
+}
+
+/* Responsive catalog density */
+@media(max-height:430px){
+  .visual-option{min-height:112px}
+  .option-image{min-height:62px}
+  .sand-catalog{grid-template-columns:repeat(5,minmax(125px,1fr))}
+  .chisel-catalog{grid-template-columns:repeat(3,minmax(180px,1fr))}
+  .finish-catalog{grid-template-columns:repeat(5,minmax(125px,1fr))}
+}

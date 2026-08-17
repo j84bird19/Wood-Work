@@ -52,3 +52,42 @@ Speed and Tool Rest changes preserve the active tool.
 - missions
 
 The next pass should tune proportions/graphics only if the user requests changes to this approved layout.
+
+
+## v0.3.2 — Visual Selection Windows
+
+The approved landscape layout from v0.3.1 is preserved.
+
+Selection popups were upgraded from text-only choices to visual catalogs:
+
+### Sandpaper
+Each option now shows:
+- abrasive image / grit texture
+- abrasive color
+- grit number
+- short use description
+
+### Chisels
+Each option now shows:
+- enlarged cutting-tip illustration
+- distinct tip/profile geometry
+- chisel name
+- short purpose description
+- approximate cutter width
+
+### Paint / Stain
+Each option now shows:
+- large finish swatch
+- stain swatches with visible wood-grain pattern
+- paint swatches as opaque color
+- finish type
+- finish name
+- short description
+
+Selecting an option still:
+1. updates the active state
+2. updates the main UI
+3. closes the popup
+4. returns the source section to normal size
+
+Speed and Tool Rest remain adjustment popups and continue to preserve the active working tool.
