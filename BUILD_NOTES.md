@@ -77,3 +77,14 @@ Required visible information:
 - [ ] Selecting a replacement option closes the popup
 - [ ] Main-screen active label updates
 - [ ] v0.3.1 layout remains unchanged
+
+
+## v0.3.3 acceptance additions
+
+- [ ] Sandpaper popup cards are visually different from each other
+- [ ] Sandpaper cards resemble illustrated paper / abrasive sheets
+- [ ] Chisel popup visuals look like illustrated tools rather than abstract icons
+- [ ] Selecting a finish changes the workpiece color
+- [ ] Finish mode shows a brush with the selected color on its tip
+- [ ] Selecting sandpaper makes sandpaper the visible active tool
+- [ ] Selecting a chisel makes the selected chisel the visible active tool

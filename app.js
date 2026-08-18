@@ -80,34 +80,34 @@
   ];
 
   const SANDPAPERS = [
-    {id:"P80", grit:80, tone:"#4c2d2b", desc:"Very coarse — heavy stock removal and leveling deep tool marks."},
-    {id:"P120", grit:120, tone:"#5a3431", desc:"Coarse — initial sanding after turning and removing obvious ridges."},
-    {id:"P150", grit:150, tone:"#633936", desc:"Coarse/medium — blends rough sanding scratches before refining."},
-    {id:"P180", grit:180, tone:"#6b3e39", desc:"Medium — general smoothing and removing lighter tool marks."},
-    {id:"P220", grit:220, tone:"#75443e", desc:"Medium/fine — prepares the surface for finer sanding or many finishes."},
-    {id:"P320", grit:320, tone:"#80504a", desc:"Fine — smooth finishing pass before stain, paint, or clear coat."},
-    {id:"P400", grit:400, tone:"#8b5a54", desc:"Very fine — final bare-wood smoothing and between-coat leveling."},
-    {id:"P600", grit:600, tone:"#95645d", desc:"Extra fine — refining finish coats and reducing very small scratches."},
-    {id:"P800", grit:800, tone:"#a17169", desc:"Polishing grit — smooths clear coats and high-build finishes."},
-    {id:"P1000", grit:1000, tone:"#aa7b73", desc:"Fine polishing — levels tiny finish defects before higher grits."},
-    {id:"P1500", grit:1500, tone:"#b48a82", desc:"Very fine polishing — begins producing a low-gloss polished surface."},
-    {id:"P2000", grit:2000, tone:"#bd9990", desc:"Ultra fine — refines clear finishes before final polish or buffing."},
-    {id:"P3000", grit:3000, tone:"#c7aaa0", desc:"Micro-fine — final polishing prep for a very smooth finished surface."}
+    {id:"P80", grit:80, tone:"#522d2a", accent:"#91473f", visual:"maroon", desc:"Very coarse — heavy stock removal and leveling deep tool marks."},
+    {id:"P120", grit:120, tone:"#6d3f31", accent:"#b4694f", visual:"rust", desc:"Coarse — initial sanding after turning and removing obvious ridges."},
+    {id:"P150", grit:150, tone:"#775235", accent:"#ca8a49", visual:"copper", desc:"Coarse/medium — blends rough sanding scratches before refining."},
+    {id:"P180", grit:180, tone:"#8a693d", accent:"#dab869", visual:"tan", desc:"Medium — general smoothing and removing lighter tool marks."},
+    {id:"P220", grit:220, tone:"#61656a", accent:"#a4a9af", visual:"slate", desc:"Medium/fine — prepares the surface for finer sanding or many finishes."},
+    {id:"P320", grit:320, tone:"#356aa2", accent:"#79a9de", visual:"blue", desc:"Fine — smooth finishing pass before stain, paint, or clear coat."},
+    {id:"P400", grit:400, tone:"#d2ac32", accent:"#f0d96c", visual:"yellow", desc:"Very fine — final bare-wood smoothing and between-coat leveling."},
+    {id:"P600", grit:600, tone:"#ded7c8", accent:"#f5f0e6", visual:"ivory", desc:"Extra fine — refining finish coats and reducing very small scratches."},
+    {id:"P800", grit:800, tone:"#11151a", accent:"#586169", visual:"black", desc:"Polishing grit — smooths clear coats and high-build finishes."},
+    {id:"P1000", grit:1000, tone:"#117180", accent:"#5bc0c6", visual:"teal", desc:"Fine polishing — levels tiny finish defects before higher grits."},
+    {id:"P1500", grit:1500, tone:"#8d3f69", accent:"#d689b3", visual:"magenta", desc:"Very fine polishing — begins producing a low-gloss polished surface."},
+    {id:"P2000", grit:2000, tone:"#4e6e38", accent:"#93c26a", visual:"green", desc:"Ultra fine — refines clear finishes before final polish or buffing."},
+    {id:"P3000", grit:3000, tone:"#6a4eb1", accent:"#baa6ef", visual:"violet", desc:"Micro-fine — final polishing prep for a very smooth finished surface."}
   ];
 
   const FINISHES = [
-    {id:"Natural", kind:"Stain", color:"#c89353", desc:"Natural wood tone with minimal color shift and visible grain."},
-    {id:"Honey", kind:"Stain", color:"#c67a24", desc:"Warm amber stain that strengthens golden and orange wood tones."},
-    {id:"Golden Oak", kind:"Stain", color:"#b66d22", desc:"Classic golden-brown stain with medium warmth and strong grain visibility."},
-    {id:"Walnut", kind:"Stain", color:"#76451f", desc:"Medium-dark brown stain for a traditional walnut appearance."},
-    {id:"Espresso", kind:"Stain", color:"#452719", desc:"Very dark brown stain while still allowing some wood grain to show."},
-    {id:"Charcoal", kind:"Paint", color:"#3e4549", desc:"Opaque charcoal gray paint for a modern dark finish."},
-    {id:"Blue", kind:"Paint", color:"#2d6099", desc:"Opaque medium blue paint."},
-    {id:"Teal", kind:"Paint", color:"#236e78", desc:"Opaque blue-green paint with a deep teal tone."},
-    {id:"Ochre", kind:"Paint", color:"#cd8a1e", desc:"Opaque warm ochre / golden yellow paint."},
-    {id:"Ivory", kind:"Paint", color:"#ddd3bf", desc:"Opaque warm off-white paint."},
-    {id:"Forest Green", kind:"Paint", color:"#315d49", desc:"Opaque deep forest green paint."},
-    {id:"Custom", kind:"Paint", color:"linear-gradient(135deg,#e34d59,#e9bb37,#58a86a,#3d77c2,#8c51b8)", desc:"Custom paint color — color picker support will be connected later."}
+    {id:"Natural", kind:"Stain", color:"#c89353", apply:"#c89353", desc:"Natural wood tone with minimal color shift and visible grain."},
+    {id:"Honey", kind:"Stain", color:"#c67a24", apply:"#be7c2f", desc:"Warm amber stain that strengthens golden and orange wood tones."},
+    {id:"Golden Oak", kind:"Stain", color:"#b66d22", apply:"#ae6b26", desc:"Classic golden-brown stain with medium warmth and strong grain visibility."},
+    {id:"Walnut", kind:"Stain", color:"#76451f", apply:"#7b4f2f", desc:"Medium-dark brown stain for a traditional walnut appearance."},
+    {id:"Espresso", kind:"Stain", color:"#452719", apply:"#4b2e21", desc:"Very dark brown stain while still allowing some wood grain to show."},
+    {id:"Charcoal", kind:"Paint", color:"#3e4549", apply:"#454d52", desc:"Opaque charcoal gray paint for a modern dark finish."},
+    {id:"Blue", kind:"Paint", color:"#2d6099", apply:"#386eab", desc:"Opaque medium blue paint."},
+    {id:"Teal", kind:"Paint", color:"#236e78", apply:"#2b7f89", desc:"Opaque blue-green paint with a deep teal tone."},
+    {id:"Ochre", kind:"Paint", color:"#cd8a1e", apply:"#d9962c", desc:"Opaque warm ochre / golden yellow paint."},
+    {id:"Ivory", kind:"Paint", color:"#ddd3bf", apply:"#ded5c7", desc:"Opaque warm off-white paint."},
+    {id:"Forest Green", kind:"Paint", color:"#315d49", apply:"#386b54", desc:"Opaque deep forest green paint."},
+    {id:"Custom", kind:"Paint", color:"linear-gradient(135deg,#e34d59,#e9bb37,#58a86a,#3d77c2,#8c51b8)", apply:"#8c51b8", desc:"Custom paint color — color picker support will be connected later."}
   ];
 
   const TOOL_VISUAL = {
@@ -119,6 +119,19 @@
 
   function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
   function lerp(a,b,t){ return a+(b-a)*t; }
+
+  function shade(hex, amt){
+    const h = hex.replace("#","");
+    if(h.length!==6) return hex;
+    const n = parseInt(h,16);
+    let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+    const mix = amt>=0 ? 255 : 0;
+    const t = Math.abs(amt);
+    r=Math.round(r+(mix-r)*t);
+    g=Math.round(g+(mix-g)*t);
+    b=Math.round(b+(mix-b)*t);
+    return "#" + [r,g,b].map(v=>v.toString(16).padStart(2,"0")).join("");
+  }
 
   function resetBlank(){
     STATE.radii = new Array(STATE.samples).fill(STATE.blankDiameterIn/2);
@@ -173,6 +186,14 @@
 
   function currentChisel(){
     return CHISELS.find(c=>c.id===STATE.activeChisel) || CHISELS[0];
+  }
+
+  function currentFinish(){
+    return FINISHES.find(f=>f.id===STATE.activeFinish) || FINISHES[0];
+  }
+
+  function finishApplyColor(){
+    return currentFinish().apply || "#c89353";
   }
 
   function targetRadius(t){
@@ -368,21 +389,31 @@
 
   function drawWood(g){
     const scale=g.maxRadiusPx/(STATE.blankDiameterIn/2);
+    const finish=currentFinish();
     currentProfilePath(g);
 
-    const wood=ctx.createLinearGradient(0,g.centerY-g.maxRadiusPx,0,g.centerY+g.maxRadiusPx);
-    wood.addColorStop(0,"#855024");
-    wood.addColorStop(.18,"#c47d38");
-    wood.addColorStop(.40,"#e6aa65");
-    wood.addColorStop(.52,"#f0bd7a");
-    wood.addColorStop(.74,"#b86c2e");
-    wood.addColorStop(1,"#74401d");
+    let wood=ctx.createLinearGradient(0,g.centerY-g.maxRadiusPx,0,g.centerY+g.maxRadiusPx);
+
+    if(finish.kind==="Paint"){
+      wood.addColorStop(0,shade(finishApplyColor(),.22));
+      wood.addColorStop(.18,shade(finishApplyColor(),.08));
+      wood.addColorStop(.50,finishApplyColor());
+      wood.addColorStop(.78,shade(finishApplyColor(),-.05));
+      wood.addColorStop(1,shade(finishApplyColor(),-.18));
+    }else{
+      wood.addColorStop(0,shade(finishApplyColor(),-.14));
+      wood.addColorStop(.18,shade(finishApplyColor(),.04));
+      wood.addColorStop(.40,shade(finishApplyColor(),.18));
+      wood.addColorStop(.52,shade(finishApplyColor(),.26));
+      wood.addColorStop(.74,shade(finishApplyColor(),.02));
+      wood.addColorStop(1,shade(finishApplyColor(),-.18));
+    }
+
     ctx.fillStyle=wood;ctx.fill();
 
     ctx.save();
     currentProfilePath(g);ctx.clip();
 
-    // Strong movement cue: rotating highlight + circumference grain
     const sweepY=g.centerY+Math.sin(STATE.rotation)*g.maxRadiusPx*.72;
     const shine=ctx.createLinearGradient(0,sweepY-25,0,sweepY+25);
     shine.addColorStop(0,"rgba(255,255,255,0)");
@@ -392,7 +423,11 @@
     ctx.fillStyle=shine;ctx.fillRect(g.blankLeft,g.centerY-g.maxRadiusPx,g.blankLengthPx,g.maxRadiusPx*2);
 
     const yoff=(STATE.rotation*13)%14;
-    ctx.globalAlpha=.25;ctx.strokeStyle="#6b3515";ctx.lineWidth=1.2;
+    if(finish.kind==="Paint"){
+      ctx.globalAlpha=.12;ctx.strokeStyle="rgba(255,255,255,.40)";ctx.lineWidth=1.0;
+    }else{
+      ctx.globalAlpha=.25;ctx.strokeStyle="#6b3515";ctx.lineWidth=1.2;
+    }
     for(let y=g.centerY-g.maxRadiusPx-14+yoff;y<g.centerY+g.maxRadiusPx+14;y+=14){
       ctx.beginPath();ctx.moveTo(g.blankLeft,y);
       for(let j=1;j<=26;j++){
@@ -403,25 +438,25 @@
     }
     ctx.restore();
 
-    // darker rough surface remnants
-    ctx.save();
-    for(let i=0;i<STATE.samples-1;i++){
-      const cut=STATE.cutAmount[i];
-      const opacity=clamp(1-cut/.045,0,1);
-      if(opacity<=0)continue;
-      const t0=i/(STATE.samples-1),t1=(i+1)/(STATE.samples-1);
-      const x0=g.blankLeft+t0*g.blankLengthPx;
-      const x1=g.blankLeft+t1*g.blankLengthPx;
-      const r=STATE.radii[i]*scale;
-      const top=g.centerY-r,bottom=g.centerY+r;
-      const shade=Math.sin(STATE.rotation+i*.12);
-      ctx.globalAlpha=.44*opacity;
-      ctx.fillStyle=shade>0?"#6c351f":"#4e271b";
-      ctx.fillRect(x0,top,x1-x0+1,bottom-top);
+    if(finish.kind!=="Paint"){
+      ctx.save();
+      for(let i=0;i<STATE.samples-1;i++){
+        const cut=STATE.cutAmount[i];
+        const opacity=clamp(1-cut/.045,0,1);
+        if(opacity<=0)continue;
+        const t0=i/(STATE.samples-1),t1=(i+1)/(STATE.samples-1);
+        const x0=g.blankLeft+t0*g.blankLengthPx;
+        const x1=g.blankLeft+t1*g.blankLengthPx;
+        const r=STATE.radii[i]*scale;
+        const top=g.centerY-r,bottom=g.centerY+r;
+        const sh=Math.sin(STATE.rotation+i*.12);
+        ctx.globalAlpha=.28*opacity;
+        ctx.fillStyle=sh>0?"#6c351f":"#4e271b";
+        ctx.fillRect(x0,top,x1-x0+1,bottom-top);
+      }
+      ctx.restore();
     }
-    ctx.restore();
 
-    // Target profile
     ctx.strokeStyle="rgba(31,20,15,.76)";
     ctx.lineWidth=1.7;
     ctx.beginPath();
@@ -439,7 +474,6 @@
     }
     ctx.closePath();ctx.stroke();
 
-    // Rotating endcap marker
     ctx.save();ctx.translate(g.blankLeft,g.centerY);ctx.rotate(STATE.rotation);
     ctx.strokeStyle="rgba(54,25,10,.50)";ctx.lineWidth=1.3;
     for(let k=0;k<5;k++){
@@ -500,6 +534,63 @@
     }
   }
 
+  function drawSandpaperTool(){
+    if(STATE.activeMode!=="SANDPAPER") return;
+    const s=toolState();
+    const x=s.handleX, y=s.handleY-18;
+    const paper=SANDPAPERS.find(p=>p.id===STATE.activeSandpaper) || SANDPAPERS[1];
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(-.18);
+    const grad=ctx.createLinearGradient(-28,-18,28,18);
+    grad.addColorStop(0, shade(paper.tone,.14));
+    grad.addColorStop(1, shade(paper.tone,-.06));
+    rr(-28,-18,56,36,5,grad,"#3e2419",1.4);
+    ctx.fillStyle="rgba(255,255,255,.22)";
+    for(let i=0;i<80;i++){
+      const px=-24+Math.random()*48, py=-14+Math.random()*28;
+      ctx.fillRect(px,py,1.1,1.1);
+    }
+    ctx.fillStyle="rgba(255,255,255,.85)";
+    ctx.font="bold 11px Inter, Arial";
+    ctx.textAlign="center";
+    ctx.fillText(STATE.activeSandpaper,0,4);
+    ctx.restore();
+  }
+
+  function drawBrushTool(){
+    if(STATE.activeMode!=="FINISH") return;
+    const s=toolState();
+    const x=s.handleX, y=s.handleY;
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(-.62);
+
+    const hg=ctx.createLinearGradient(-62,0,18,0);
+    hg.addColorStop(0,"#5d3318");hg.addColorStop(.35,"#c07a35");hg.addColorStop(.62,"#eea85d");hg.addColorStop(1,"#7a421d");
+    rr(-62,-7,78,14,7,hg,"#4a250f",1.4);
+
+    const fg=ctx.createLinearGradient(12,0,28,0);
+    fg.addColorStop(0,"#72787c");fg.addColorStop(.5,"#eff2f2");fg.addColorStop(1,"#6d7376");
+    rr(12,-10,18,20,3,fg,"#50565a",1.2);
+
+    const tipColor=finishApplyColor();
+    const br=ctx.createLinearGradient(30,0,48,0);
+    br.addColorStop(0,shade(tipColor,.04));
+    br.addColorStop(.55,tipColor);
+    br.addColorStop(1,shade(tipColor,-.08));
+    ctx.beginPath();
+    ctx.moveTo(30,-10);ctx.lineTo(46,-14);ctx.lineTo(48,14);ctx.lineTo(30,10);ctx.closePath();
+    ctx.fillStyle=br;ctx.fill();ctx.strokeStyle="#49311f";ctx.lineWidth=1;ctx.stroke();
+
+    ctx.fillStyle=tipColor;
+    ctx.beginPath();
+    ctx.moveTo(45,-13);ctx.lineTo(53,-8);ctx.lineTo(53,8);ctx.lineTo(45,13);ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
   function drawParticles(){
     for(const p of STATE.particles){
       const a=clamp(1-p.age/p.life,0,1);
@@ -514,6 +605,8 @@
     drawWood(g);
     drawParticles();
     drawChisel();
+    drawSandpaperTool();
+    drawBrushTool();
   }
 
   function localPointer(e){
@@ -673,10 +766,12 @@
         ${SANDPAPERS.map(item=>`
           <button class="visual-option sand-option ${item.id===STATE.activeSandpaper?"selected":""}"
                   data-sand="${item.id}" type="button">
-            <span class="option-image sand-image" style="--sand-tone:${item.tone}">
-              <i class="sand-disc"></i>
-              <i class="sand-grain"></i>
-              <b>${item.id}</b>
+            <span class="option-image sand-image illustration-card" style="--sand-tone:${item.tone};--sand-accent:${item.accent}">
+              <i class="sand-sheet ${item.visual}">
+                <span class="sheet-top"></span>
+                <span class="sheet-fold"></span>
+                <span class="sheet-label">${item.id}</span>
+              </i>
             </span>
             <span class="option-copy">
               <strong>${item.id} — ${item.grit} Grit</strong>
@@ -703,10 +798,12 @@
         ${CHISELS.map(c=>`
           <button class="visual-option chisel-option ${c.id===STATE.activeChisel?"selected":""}"
                   data-chisel="${c.id}" type="button">
-            <span class="option-image chisel-image">
-              <i class="tip-diagram ${c.visual}">
-                <span class="tip-metal"></span>
-                <span class="tip-edge"></span>
+            <span class="option-image chisel-image illustration-card">
+              <i class="popup-chisel ${c.visual}">
+                <span class="pc-metal"></span>
+                <span class="pc-tip"></span>
+                <span class="pc-ferrule"></span>
+                <span class="pc-handle"></span>
               </i>
             </span>
             <span class="option-copy">
