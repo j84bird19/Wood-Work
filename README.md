@@ -115,3 +115,16 @@ This update keeps the approved v0.3.1 layout and fixes the issues reported in v0
 - Chisel selection makes the chisel the visible active tool.
 - Sandpaper selection makes the sandpaper the visible active tool.
 - Finish selection makes the brush the visible active tool.
+
+
+## v0.3.4 — Universal Contact Behavior
+
+The approved landscape UI is unchanged. This build implements one working rule for all active tools: **the exact contact area is the only area affected.**
+
+- Chisel removes material under its cutter profile.
+- Sandpaper can now be grabbed and moved; it locally smooths/removes tiny amounts and creates dust.
+- Paint/stain no longer recolors the entire blank when selected. The brush can be grabbed and applies finish only where its loaded tip touches.
+- Paint builds more opaque than stain.
+- Chiseling or sanding can locally disturb an existing finish.
+- All active tools stay fixed-size.
+- Speed and tool-rest adjustment behavior is preserved.

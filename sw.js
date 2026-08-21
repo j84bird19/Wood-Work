@@ -1,4 +1,4 @@
-const CACHE="woodprep-v0.3.3";
+const CACHE="woodprep-v0.3.4";
 const FILES=["./","./index.html","./styles.css","./app.js","./manifest.webmanifest"];
 
 self.addEventListener("install",event=>{

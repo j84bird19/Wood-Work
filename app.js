@@ -49,6 +49,13 @@
     grabOffsetX: 0,
     grabOffsetY: 0,
     particles: [],
+
+    // v0.3.4 local-contact surface state
+    finishCoverage: [],
+    finishColor: [],
+    finishKind: [],
+    sandedAmount: [],
+
     lastTime: performance.now()
   };
 
@@ -137,6 +144,10 @@
     STATE.radii = new Array(STATE.samples).fill(STATE.blankDiameterIn/2);
     STATE.cutAmount = new Array(STATE.samples).fill(0);
     STATE.particles = [];
+    STATE.finishCoverage = new Array(STATE.samples).fill(0);
+    STATE.finishColor = new Array(STATE.samples).fill("#c89353");
+    STATE.finishKind = new Array(STATE.samples).fill("None");
+    STATE.sandedAmount = new Array(STATE.samples).fill(0);
     const g = geometry();
     STATE.toolX = .52;
     STATE.desiredHandleY = g.toolHomeY;
@@ -209,23 +220,36 @@
 
   function toolState(){
     const g = geometry();
-    const chisel = currentChisel();
     const xNorm = clamp(STATE.toolX,0,1);
     const idx = clamp(Math.round(xNorm*(STATE.samples-1)),0,STATE.samples-1);
     const currentRadius = STATE.radii[idx];
     const pxPerIn = g.maxRadiusPx/(STATE.blankDiameterIn/2);
     const surfaceBottomY = g.centerY + currentRadius*pxPerIn;
 
-    const tipY = STATE.desiredHandleY - TOOL_VISUAL.tipToHandlePx*TOOL_VISUAL.scale;
-    const tipX = g.blankLeft + xNorm*g.blankLengthPx;
-    const desiredRadius = clamp((tipY-g.centerY)/pxPerIn,.12,STATE.blankDiameterIn/2);
-    const contact = STATE.draggingTool && tipY <= surfaceBottomY+2 && desiredRadius < currentRadius+.02;
+    const handleX = g.blankLeft + xNorm*g.blankLengthPx;
+    const handleY = STATE.desiredHandleY;
+
+    let contactY = handleY;
+    let contactWidthIn = .40;
+
+    if(STATE.activeMode==="CHISEL"){
+      contactY = handleY - TOOL_VISUAL.tipToHandlePx*TOOL_VISUAL.scale;
+      contactWidthIn = currentChisel().widthIn;
+    }else if(STATE.activeMode==="SANDPAPER"){
+      contactY = handleY - 18;
+      contactWidthIn = .95;
+    }else if(STATE.activeMode==="FINISH"){
+      contactY = handleY - 34;
+      contactWidthIn = .58;
+    }
+
+    const desiredRadius = clamp((contactY-g.centerY)/pxPerIn,.12,STATE.blankDiameterIn/2);
+    const contact = STATE.draggingTool && contactY <= surfaceBottomY+4 && desiredRadius < currentRadius+.10;
 
     return {
-      g,chisel,xNorm,idx,currentRadius,pxPerIn,
-      surfaceBottomY,tipX,tipY,
-      handleX:tipX,handleY:STATE.desiredHandleY,
-      desiredRadius,contact
+      g, chisel:currentChisel(), xNorm, idx, currentRadius, pxPerIn,
+      surfaceBottomY, tipX:handleX, tipY:contactY, contactY, contactWidthIn,
+      handleX, handleY, desiredRadius, contact
     };
   }
 
@@ -240,37 +264,91 @@
     return Math.sqrt(Math.max(0,1-a*a));
   }
 
-  function carve(){
-    const s = toolState();
-    if(!s.contact || STATE.activeMode!=="CHISEL") return;
+  function applyActiveTool(dt){
+    const s=toolState();
+    if(!s.contact) return;
+    if(STATE.activeMode==="CHISEL") applyChiselContact(s,dt);
+    else if(STATE.activeMode==="SANDPAPER") applySandpaperContact(s,dt);
+    else if(STATE.activeMode==="FINISH") applyFinishContact(s,dt);
+  }
 
-    const center = s.xNorm*(STATE.samples-1);
-    const samplesPerIn = (STATE.samples-1)/STATE.workLengthIn;
-    const half = Math.max(1,(s.chisel.widthIn*samplesPerIn)/2);
-    const start = Math.max(0,Math.floor(center-half*1.25));
-    const end = Math.min(STATE.samples-1,Math.ceil(center+half*1.25));
+  function contactWindow(s,widthIn,extra=1){
+    const center=s.xNorm*(STATE.samples-1);
+    const samplesPerIn=(STATE.samples-1)/STATE.workLengthIn;
+    const half=Math.max(1,(widthIn*samplesPerIn)/2);
+    return {center,half,start:Math.max(0,Math.floor(center-half*extra)),end:Math.min(STATE.samples-1,Math.ceil(center+half*extra))};
+  }
+
+  function applyChiselContact(s,dt){
+    const w=contactWindow(s,s.chisel.widthIn,1.25);
     let removed=0;
-
-    for(let i=start;i<=end;i++){
-      const d=(i-center)/half;
+    for(let i=w.start;i<=w.end;i++){
+      const d=(i-w.center)/w.half;
       const inf=influence(d,s.chisel.shape);
       if(inf<=0) continue;
-      const shoulderLift=(1-inf)*(s.chisel.widthIn*.18);
-      const target=Math.min(STATE.blankDiameterIn/2,s.desiredRadius+shoulderLift);
-
+      const target=Math.min(STATE.blankDiameterIn/2,s.desiredRadius+(1-inf)*(s.chisel.widthIn*.18));
       if(STATE.radii[i]>target){
         const before=STATE.radii[i];
-        STATE.radii[i]=Math.max(target,lerp(STATE.radii[i],target,.87));
+        const follow=clamp(.64+dt*10,.66,.94);
+        STATE.radii[i]=Math.max(target,lerp(STATE.radii[i],target,follow));
         STATE.cutAmount[i]=Math.max(STATE.cutAmount[i],STATE.blankDiameterIn/2-STATE.radii[i]);
+        STATE.finishCoverage[i]=Math.max(0,STATE.finishCoverage[i]-.35);
+        STATE.sandedAmount[i]=Math.max(0,STATE.sandedAmount[i]-.15);
         removed+=before-STATE.radii[i];
       }
     }
-    if(removed>.0003) spawnChips(s,Math.min(9,2+Math.floor(removed*125)));
+    if(removed>.0002) spawnChips(s,Math.min(12,2+Math.floor(removed*155)));
+  }
+
+  function applySandpaperContact(s,dt){
+    const paper=SANDPAPERS.find(p=>p.id===STATE.activeSandpaper) || SANDPAPERS[1];
+    const w=contactWindow(s,s.contactWidthIn,1.12);
+    const gritNorm=clamp((paper.grit-80)/(3000-80),0,1);
+    const smooth=lerp(.25,.05,gritNorm);
+    const remove=lerp(.0038,.00035,gritNorm);
+    const snapshot=STATE.radii.slice(w.start,w.end+1);
+    for(let i=w.start;i<=w.end;i++){
+      const d=Math.abs((i-w.center)/w.half);
+      if(d>1.12) continue;
+      const inf=clamp(1-d/1.12,0,1);
+      const local=i-w.start, a=Math.max(0,local-2), b=Math.min(snapshot.length-1,local+2);
+      let sum=0,count=0; for(let j=a;j<=b;j++){sum+=snapshot[j];count++;}
+      const avg=sum/Math.max(1,count);
+      STATE.radii[i]=lerp(STATE.radii[i],avg,smooth*inf);
+      STATE.radii[i]=Math.max(.12,STATE.radii[i]-remove*inf);
+      STATE.sandedAmount[i]=clamp(STATE.sandedAmount[i]+.025*inf,0,1);
+      STATE.finishCoverage[i]=Math.max(0,STATE.finishCoverage[i]-(1-gritNorm*.55)*.018*inf);
+    }
+    spawnDust(s,Math.max(2,Math.floor(3+(1-gritNorm)*4)));
+  }
+
+  function applyFinishContact(s,dt){
+    const f=currentFinish();
+    const w=contactWindow(s,s.contactWidthIn,1.05);
+    const gain=f.kind==="Paint"?.075:.045;
+    for(let i=w.start;i<=w.end;i++){
+      const d=Math.abs((i-w.center)/w.half);
+      if(d>1.05) continue;
+      const inf=clamp(1-d/1.05,0,1);
+      STATE.finishCoverage[i]=clamp(STATE.finishCoverage[i]+gain*inf,0,1);
+      STATE.finishColor[i]=finishApplyColor();
+      STATE.finishKind[i]=f.kind;
+    }
+    spawnFinishMarks(s,2);
+  }
+
+  function spawnDust(s,count){
+    for(let i=0;i<count;i++) STATE.particles.push({type:"dust",x:s.tipX+(Math.random()-.5)*28,y:s.surfaceBottomY,vx:(Math.random()-.5)*40,vy:15+Math.random()*55,life:.3+Math.random()*.35,age:0,size:1+Math.random()*2,r:0,rot:0});
+  }
+
+  function spawnFinishMarks(s,count){
+    for(let i=0;i<count;i++) STATE.particles.push({type:"finish",color:finishApplyColor(),x:s.tipX+(Math.random()-.5)*18,y:s.surfaceBottomY,vx:(Math.random()-.5)*16,vy:8+Math.random()*20,life:.2+Math.random()*.18,age:0,size:1.5+Math.random()*2,r:0,rot:0});
   }
 
   function spawnChips(s,count){
     for(let i=0;i<count;i++){
       STATE.particles.push({
+        type:"chip",
         x:s.tipX+(Math.random()-.5)*10,
         y:s.surfaceBottomY,
         vx:(Math.random()-.5)*100,
@@ -389,99 +467,48 @@
 
   function drawWood(g){
     const scale=g.maxRadiusPx/(STATE.blankDiameterIn/2);
-    const finish=currentFinish();
     currentProfilePath(g);
+    const raw=ctx.createLinearGradient(0,g.centerY-g.maxRadiusPx,0,g.centerY+g.maxRadiusPx);
+    raw.addColorStop(0,"#855024");raw.addColorStop(.18,"#c47d38");raw.addColorStop(.40,"#e6aa65");raw.addColorStop(.52,"#f0bd7a");raw.addColorStop(.74,"#b86c2e");raw.addColorStop(1,"#74401d");
+    ctx.fillStyle=raw;ctx.fill();
 
-    let wood=ctx.createLinearGradient(0,g.centerY-g.maxRadiusPx,0,g.centerY+g.maxRadiusPx);
-
-    if(finish.kind==="Paint"){
-      wood.addColorStop(0,shade(finishApplyColor(),.22));
-      wood.addColorStop(.18,shade(finishApplyColor(),.08));
-      wood.addColorStop(.50,finishApplyColor());
-      wood.addColorStop(.78,shade(finishApplyColor(),-.05));
-      wood.addColorStop(1,shade(finishApplyColor(),-.18));
-    }else{
-      wood.addColorStop(0,shade(finishApplyColor(),-.14));
-      wood.addColorStop(.18,shade(finishApplyColor(),.04));
-      wood.addColorStop(.40,shade(finishApplyColor(),.18));
-      wood.addColorStop(.52,shade(finishApplyColor(),.26));
-      wood.addColorStop(.74,shade(finishApplyColor(),.02));
-      wood.addColorStop(1,shade(finishApplyColor(),-.18));
+    // Local finish bands only where brush has actually touched.
+    for(let i=0;i<STATE.samples-1;i++){
+      const cov=STATE.finishCoverage[i]||0;
+      if(cov<=.001) continue;
+      const t0=i/(STATE.samples-1),t1=(i+1)/(STATE.samples-1);
+      const x0=g.blankLeft+t0*g.blankLengthPx,x1=g.blankLeft+t1*g.blankLengthPx;
+      const r=STATE.radii[i]*scale,top=g.centerY-r,bottom=g.centerY+r;
+      const kind=STATE.finishKind[i], col=STATE.finishColor[i]||"#c89353";
+      ctx.save();ctx.globalAlpha=kind==="Paint"?clamp(cov*1.05,0,1):clamp(cov*.72,0,.84);
+      const grad=ctx.createLinearGradient(0,top,0,bottom);
+      grad.addColorStop(0,shade(col,.13));grad.addColorStop(.48,col);grad.addColorStop(1,shade(col,-.15));
+      ctx.fillStyle=grad;ctx.fillRect(x0-1,top,(x1-x0)+2,bottom-top);ctx.restore();
     }
 
-    ctx.fillStyle=wood;ctx.fill();
-
-    ctx.save();
-    currentProfilePath(g);ctx.clip();
-
+    ctx.save();currentProfilePath(g);ctx.clip();
     const sweepY=g.centerY+Math.sin(STATE.rotation)*g.maxRadiusPx*.72;
     const shine=ctx.createLinearGradient(0,sweepY-25,0,sweepY+25);
-    shine.addColorStop(0,"rgba(255,255,255,0)");
-    shine.addColorStop(.48,"rgba(255,246,215,.38)");
-    shine.addColorStop(.53,"rgba(255,255,255,.13)");
-    shine.addColorStop(1,"rgba(255,255,255,0)");
+    shine.addColorStop(0,"rgba(255,255,255,0)");shine.addColorStop(.48,"rgba(255,246,215,.38)");shine.addColorStop(.53,"rgba(255,255,255,.13)");shine.addColorStop(1,"rgba(255,255,255,0)");
     ctx.fillStyle=shine;ctx.fillRect(g.blankLeft,g.centerY-g.maxRadiusPx,g.blankLengthPx,g.maxRadiusPx*2);
+    const yoff=(STATE.rotation*13)%14;ctx.globalAlpha=.22;ctx.strokeStyle="#6b3515";ctx.lineWidth=1.2;
+    for(let y=g.centerY-g.maxRadiusPx-14+yoff;y<g.centerY+g.maxRadiusPx+14;y+=14){ctx.beginPath();ctx.moveTo(g.blankLeft,y);for(let j=1;j<=26;j++){const x=g.blankLeft+(j/26)*g.blankLengthPx;ctx.lineTo(x,y+Math.sin(j*.72+STATE.rotation*.33)*2);}ctx.stroke();}
+    ctx.restore();
 
-    const yoff=(STATE.rotation*13)%14;
-    if(finish.kind==="Paint"){
-      ctx.globalAlpha=.12;ctx.strokeStyle="rgba(255,255,255,.40)";ctx.lineWidth=1.0;
-    }else{
-      ctx.globalAlpha=.25;ctx.strokeStyle="#6b3515";ctx.lineWidth=1.2;
-    }
-    for(let y=g.centerY-g.maxRadiusPx-14+yoff;y<g.centerY+g.maxRadiusPx+14;y+=14){
-      ctx.beginPath();ctx.moveTo(g.blankLeft,y);
-      for(let j=1;j<=26;j++){
-        const x=g.blankLeft+(j/26)*g.blankLengthPx;
-        ctx.lineTo(x,y+Math.sin(j*.72+STATE.rotation*.33)*2);
-      }
-      ctx.stroke();
+    // Bark remnants where uncut and not covered.
+    ctx.save();
+    for(let i=0;i<STATE.samples-1;i++){
+      const opacity=clamp(1-STATE.cutAmount[i]/.045,0,1)*(1-(STATE.finishCoverage[i]||0));
+      if(opacity<=0)continue;
+      const t0=i/(STATE.samples-1),t1=(i+1)/(STATE.samples-1),x0=g.blankLeft+t0*g.blankLengthPx,x1=g.blankLeft+t1*g.blankLengthPx;
+      const r=STATE.radii[i]*scale,top=g.centerY-r,bottom=g.centerY+r;
+      ctx.globalAlpha=.28*opacity;ctx.fillStyle=Math.sin(STATE.rotation+i*.12)>0?"#6c351f":"#4e271b";ctx.fillRect(x0,top,x1-x0+1,bottom-top);
     }
     ctx.restore();
 
-    if(finish.kind!=="Paint"){
-      ctx.save();
-      for(let i=0;i<STATE.samples-1;i++){
-        const cut=STATE.cutAmount[i];
-        const opacity=clamp(1-cut/.045,0,1);
-        if(opacity<=0)continue;
-        const t0=i/(STATE.samples-1),t1=(i+1)/(STATE.samples-1);
-        const x0=g.blankLeft+t0*g.blankLengthPx;
-        const x1=g.blankLeft+t1*g.blankLengthPx;
-        const r=STATE.radii[i]*scale;
-        const top=g.centerY-r,bottom=g.centerY+r;
-        const sh=Math.sin(STATE.rotation+i*.12);
-        ctx.globalAlpha=.28*opacity;
-        ctx.fillStyle=sh>0?"#6c351f":"#4e271b";
-        ctx.fillRect(x0,top,x1-x0+1,bottom-top);
-      }
-      ctx.restore();
-    }
-
-    ctx.strokeStyle="rgba(31,20,15,.76)";
-    ctx.lineWidth=1.7;
-    ctx.beginPath();
-    for(let i=0;i<=180;i++){
-      const t=i/180;
-      const x=g.blankLeft+t*g.blankLengthPx;
-      const y=g.centerY-targetRadius(t)*scale;
-      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-    }
-    for(let i=180;i>=0;i--){
-      const t=i/180;
-      const x=g.blankLeft+t*g.blankLengthPx;
-      const y=g.centerY+targetRadius(t)*scale;
-      ctx.lineTo(x,y);
-    }
-    ctx.closePath();ctx.stroke();
-
-    ctx.save();ctx.translate(g.blankLeft,g.centerY);ctx.rotate(STATE.rotation);
-    ctx.strokeStyle="rgba(54,25,10,.50)";ctx.lineWidth=1.3;
-    for(let k=0;k<5;k++){
-      const a=k*Math.PI*2/5;
-      ctx.beginPath();ctx.moveTo(0,0);
-      ctx.lineTo(Math.cos(a)*5,Math.sin(a)*STATE.radii[0]*scale*.88);ctx.stroke();
-    }
-    ctx.restore();
+    ctx.strokeStyle="rgba(31,20,15,.76)";ctx.lineWidth=1.7;ctx.beginPath();
+    for(let i=0;i<=180;i++){const t=i/180,x=g.blankLeft+t*g.blankLengthPx,y=g.centerY-targetRadius(t)*scale;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}for(let i=180;i>=0;i--){const t=i/180,x=g.blankLeft+t*g.blankLengthPx,y=g.centerY+targetRadius(t)*scale;ctx.lineTo(x,y);}ctx.closePath();ctx.stroke();
+    ctx.save();ctx.translate(g.blankLeft,g.centerY);ctx.rotate(STATE.rotation);ctx.strokeStyle="rgba(54,25,10,.50)";ctx.lineWidth=1.3;for(let k=0;k<5;k++){const a=k*Math.PI*2/5;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*5,Math.sin(a)*STATE.radii[0]*scale*.88);ctx.stroke();}ctx.restore();
   }
 
   function drawChisel(){
@@ -537,65 +564,35 @@
   function drawSandpaperTool(){
     if(STATE.activeMode!=="SANDPAPER") return;
     const s=toolState();
-    const x=s.handleX, y=s.handleY-18;
-    const paper=SANDPAPERS.find(p=>p.id===STATE.activeSandpaper) || SANDPAPERS[1];
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.rotate(-.18);
-    const grad=ctx.createLinearGradient(-28,-18,28,18);
-    grad.addColorStop(0, shade(paper.tone,.14));
-    grad.addColorStop(1, shade(paper.tone,-.06));
-    rr(-28,-18,56,36,5,grad,"#3e2419",1.4);
-    ctx.fillStyle="rgba(255,255,255,.22)";
-    for(let i=0;i<80;i++){
-      const px=-24+Math.random()*48, py=-14+Math.random()*28;
-      ctx.fillRect(px,py,1.1,1.1);
-    }
-    ctx.fillStyle="rgba(255,255,255,.85)";
-    ctx.font="bold 11px Inter, Arial";
-    ctx.textAlign="center";
-    ctx.fillText(STATE.activeSandpaper,0,4);
+    const paper=SANDPAPERS.find(p=>p.id===STATE.activeSandpaper)||SANDPAPERS[1];
+    ctx.save();ctx.translate(s.handleX,s.handleY-18);
+    const grad=ctx.createLinearGradient(-34,-16,34,16);grad.addColorStop(0,shade(paper.tone,.16));grad.addColorStop(1,shade(paper.tone,-.08));
+    rr(-34,-16,68,32,6,grad,"#3e2419",1.5);
+    ctx.fillStyle="rgba(255,255,255,.22)";for(let i=0;i<55;i++){const px=-29+Math.random()*58,py=-12+Math.random()*24;ctx.fillRect(px,py,1.2,1.2);}
+    ctx.fillStyle="rgba(255,255,255,.88)";ctx.font="bold 11px Inter, Arial";ctx.textAlign="center";ctx.fillText(STATE.activeSandpaper,0,4);
+    if(STATE.draggingTool) rr(-38,-20,76,40,8,null,"rgba(183,255,73,.78)",2);
     ctx.restore();
   }
 
   function drawBrushTool(){
     if(STATE.activeMode!=="FINISH") return;
-    const s=toolState();
-    const x=s.handleX, y=s.handleY;
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.rotate(-.62);
-
-    const hg=ctx.createLinearGradient(-62,0,18,0);
-    hg.addColorStop(0,"#5d3318");hg.addColorStop(.35,"#c07a35");hg.addColorStop(.62,"#eea85d");hg.addColorStop(1,"#7a421d");
-    rr(-62,-7,78,14,7,hg,"#4a250f",1.4);
-
-    const fg=ctx.createLinearGradient(12,0,28,0);
-    fg.addColorStop(0,"#72787c");fg.addColorStop(.5,"#eff2f2");fg.addColorStop(1,"#6d7376");
-    rr(12,-10,18,20,3,fg,"#50565a",1.2);
-
-    const tipColor=finishApplyColor();
-    const br=ctx.createLinearGradient(30,0,48,0);
-    br.addColorStop(0,shade(tipColor,.04));
-    br.addColorStop(.55,tipColor);
-    br.addColorStop(1,shade(tipColor,-.08));
-    ctx.beginPath();
-    ctx.moveTo(30,-10);ctx.lineTo(46,-14);ctx.lineTo(48,14);ctx.lineTo(30,10);ctx.closePath();
-    ctx.fillStyle=br;ctx.fill();ctx.strokeStyle="#49311f";ctx.lineWidth=1;ctx.stroke();
-
-    ctx.fillStyle=tipColor;
-    ctx.beginPath();
-    ctx.moveTo(45,-13);ctx.lineTo(53,-8);ctx.lineTo(53,8);ctx.lineTo(45,13);ctx.closePath();
-    ctx.fill();
-
+    const s=toolState(), x=s.handleX, y=s.handleY, tipColor=finishApplyColor();
+    ctx.save();ctx.translate(x,y);
+    const hg=ctx.createLinearGradient(-11,18,11,88);hg.addColorStop(0,"#e9a75a");hg.addColorStop(.4,"#bc6d2e");hg.addColorStop(1,"#5c3016");rr(-11,18,22,74,8,hg,"#4a250f",1.3);
+    const fg=ctx.createLinearGradient(-15,-3,15,14);fg.addColorStop(0,"#70767a");fg.addColorStop(.5,"#f2f4f4");fg.addColorStop(1,"#656b6f");rr(-15,-3,30,20,3,fg,"#50565a",1.2);
+    const br=ctx.createLinearGradient(-15,-30,15,-5);br.addColorStop(0,shade(tipColor,.08));br.addColorStop(.55,tipColor);br.addColorStop(1,shade(tipColor,-.10));ctx.beginPath();ctx.moveTo(-15,-3);ctx.lineTo(-12,-30);ctx.lineTo(12,-30);ctx.lineTo(15,-3);ctx.closePath();ctx.fillStyle=br;ctx.fill();ctx.strokeStyle="#49311f";ctx.stroke();
+    rr(-12,-34,24,7,3,tipColor,null);
+    if(STATE.draggingTool) rr(-20,-39,40,136,10,null,"rgba(183,255,73,.78)",2);
     ctx.restore();
   }
 
   function drawParticles(){
     for(const p of STATE.particles){
-      const a=clamp(1-p.age/p.life,0,1);
-      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.globalAlpha=a;
-      ctx.fillStyle="#ba6d32";rr(-p.size/2,-1,p.size,2,1,"#ba6d32");ctx.restore();
+      const a=clamp(1-p.age/p.life,0,1);ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot||0);ctx.globalAlpha=a;
+      if(p.type==="dust"){ctx.fillStyle="rgba(225,205,177,.82)";ctx.beginPath();ctx.arc(0,0,p.size,0,Math.PI*2);ctx.fill();}
+      else if(p.type==="finish"){ctx.fillStyle=p.color||"#c89353";ctx.beginPath();ctx.arc(0,0,p.size,0,Math.PI*2);ctx.fill();}
+      else rr(-p.size/2,-1,p.size,2,1,"#ba6d32");
+      ctx.restore();
     }
   }
 
@@ -614,17 +611,20 @@
     return {x:e.clientX-r.left,y:e.clientY-r.top};
   }
 
-  function handleHit(x,y){
+  function activeToolHit(x,y){
     const s=toolState();
-    const dx=(x-s.handleX)/(TOOL_VISUAL.handleRadiusX*TOOL_VISUAL.scale*1.45);
-    const dy=(y-s.handleY)/(TOOL_VISUAL.handleRadiusY*TOOL_VISUAL.scale*1.35);
-    return dx*dx+dy*dy<=1;
+    if(STATE.activeMode==="CHISEL"){
+      const dx=(x-s.handleX)/(TOOL_VISUAL.handleRadiusX*TOOL_VISUAL.scale*1.45),dy=(y-s.handleY)/(TOOL_VISUAL.handleRadiusY*TOOL_VISUAL.scale*1.35);return dx*dx+dy*dy<=1;
+    }
+    if(STATE.activeMode==="SANDPAPER") return Math.abs(x-s.handleX)<=44 && Math.abs(y-(s.handleY-18))<=28;
+    if(STATE.activeMode==="FINISH") return Math.abs(x-s.handleX)<=28 && y>=s.handleY-45 && y<=s.handleY+100;
+    return false;
   }
 
   canvas.addEventListener("pointerdown",e=>{
-    if(STATE.activeMode!=="CHISEL" || STATE.draggingTool) return;
+    if(STATE.draggingTool) return;
     const p=localPointer(e);
-    if(!handleHit(p.x,p.y)) return;
+    if(!activeToolHit(p.x,p.y)) return;
     const s=toolState();
     STATE.draggingTool=true;
     STATE.toolPointerId=e.pointerId;
@@ -642,8 +642,10 @@
 
     STATE.toolX=clamp((desiredX-g.blankLeft)/g.blankLengthPx,0,1);
 
-    const minY=g.centerY+TOOL_VISUAL.tipToHandlePx*TOOL_VISUAL.scale+5;
-    const maxY=g.h*.96;
+    let minY,maxY;
+    if(STATE.activeMode==="CHISEL"){minY=g.centerY+TOOL_VISUAL.tipToHandlePx*TOOL_VISUAL.scale+5;maxY=g.h*.96;}
+    else if(STATE.activeMode==="SANDPAPER"){minY=g.centerY+22;maxY=g.h*.94;}
+    else {minY=g.centerY+34;maxY=g.h*.91;}
     STATE.desiredHandleY=clamp(desiredY,minY,maxY);
   });
 
@@ -785,6 +787,7 @@
       btn.addEventListener("click",()=>{
         STATE.activeSandpaper=btn.dataset.sand;
         STATE.activeMode="SANDPAPER";
+        STATE.desiredHandleY=geometry().toolHomeY*.92;
         updateLabels();
         closePopup();
       });
@@ -819,6 +822,7 @@
       btn.addEventListener("click",()=>{
         STATE.activeChisel=btn.dataset.chisel;
         STATE.activeMode="CHISEL";
+        STATE.desiredHandleY=geometry().toolHomeY;
         updateLabels();
         closePopup();
       });
@@ -854,6 +858,7 @@
       btn.addEventListener("click",()=>{
         STATE.activeFinish=btn.dataset.finish;
         STATE.activeMode="FINISH";
+        STATE.desiredHandleY=geometry().toolHomeY*.92;
         updateLabels();
         closePopup();
       });
@@ -912,7 +917,7 @@
     STATE.lastTime=now;
     STATE.rotation+=(STATE.rpm/60)*Math.PI*2*dt;
 
-    carve();
+    applyActiveTool(dt);
     updateParticles(dt);
     updateLabels();
     draw();

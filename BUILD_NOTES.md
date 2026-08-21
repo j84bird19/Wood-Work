@@ -88,3 +88,19 @@ Required visible information:
 - [ ] Finish mode shows a brush with the selected color on its tip
 - [ ] Selecting sandpaper makes sandpaper the visible active tool
 - [ ] Selecting a chisel makes the selected chisel the visible active tool
+
+
+## v0.3.4 Contact Engine Test
+
+- [ ] Chisel affects only its contact footprint
+- [ ] Sandpaper is directly movable when selected
+- [ ] Sandpaper smooths only beneath the pad
+- [ ] Coarser grit affects surface more aggressively than fine grit
+- [ ] Sanding dust appears at contact
+- [ ] Brush is directly movable when finish is selected
+- [ ] Selecting a finish does NOT recolor the entire blank
+- [ ] Brush applies color only where it touches
+- [ ] Paint builds more opaque than stain
+- [ ] Unpainted areas remain unchanged
+- [ ] Landscape UI remains unchanged
+- [ ] Speed and tool-rest popups remain working
