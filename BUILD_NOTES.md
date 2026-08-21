@@ -104,3 +104,23 @@ Required visible information:
 - [ ] Unpainted areas remain unchanged
 - [ ] Landscape UI remains unchanged
 - [ ] Speed and tool-rest popups remain working
+
+
+## v0.3.4 Tool Visibility Hotfix
+
+Root cause fix:
+- active mode and selected item were updating correctly
+- all tool types were still sharing positioning assumptions from the chisel prototype
+- some tool geometry could therefore start at or beyond the useful canvas area
+
+New functions:
+- `activeToolHome(mode)`
+- `placeActiveTool(mode)`
+
+Acceptance:
+- [ ] Select chisel: chisel is immediately visible and draggable
+- [ ] Select sandpaper: sandpaper is immediately visible and draggable
+- [ ] Select paint/stain: brush is immediately visible and draggable
+- [ ] Active tool remains inside canvas on resize
+- [ ] Speed and tool rest behavior unchanged
+- [ ] Main landscape layout unchanged

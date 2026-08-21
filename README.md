@@ -128,3 +128,17 @@ The approved landscape UI is unchanged. This build implements one working rule f
 - Chiseling or sanding can locally disturb an existing finish.
 - All active tools stay fixed-size.
 - Speed and tool-rest adjustment behavior is preserved.
+
+
+## v0.3.4 — Tool Visibility Hotfix
+
+Corrected a regression where replacement selections could become active in state
+without being positioned visibly in the lathe workspace.
+
+After selecting:
+- a chisel -> selected chisel is immediately placed onscreen
+- sandpaper -> selected pad is immediately placed onscreen
+- paint/stain -> selected-color brush is immediately placed onscreen
+
+Each tool now has its own safe visible home position and remains completely inside
+the lathe canvas when first activated.

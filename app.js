@@ -148,9 +148,7 @@
     STATE.finishColor = new Array(STATE.samples).fill("#c89353");
     STATE.finishKind = new Array(STATE.samples).fill("None");
     STATE.sandedAmount = new Array(STATE.samples).fill(0);
-    const g = geometry();
-    STATE.toolX = .52;
-    STATE.desiredHandleY = g.toolHomeY;
+    placeActiveTool(STATE.activeMode);
     updateLabels();
   }
 
@@ -161,7 +159,7 @@
     canvas.height = Math.max(1, Math.round(rect.height*dpr));
     ctx.setTransform(dpr,0,0,dpr,0,0);
     if(!STATE.draggingTool){
-      STATE.desiredHandleY = geometry().toolHomeY;
+      STATE.desiredHandleY = activeToolHome(STATE.activeMode);
     }
   }
 
@@ -188,6 +186,32 @@
       blankLeft,blankRight,blankLengthPx:blankRight-blankLeft,
       centerY,maxRadiusPx,tailstockX,bedTop,toolRestY,toolHomeY
     };
+  }
+
+  function activeToolHome(mode=STATE.activeMode){
+    const g=geometry();
+
+    if(mode==="CHISEL"){
+      // Keep the entire fixed-size chisel inside the canvas.
+      const minY=g.centerY + TOOL_VISUAL.tipToHandlePx*TOOL_VISUAL.scale + 12;
+      const maxY=g.h - 46;
+      return clamp(g.h*.78,minY,maxY);
+    }
+
+    if(mode==="SANDPAPER"){
+      // Pad is centered around handleY-18.
+      return clamp(g.h*.70,g.centerY+48,g.h-54);
+    }
+
+    // Brush: tip is above the handle and the wooden handle extends below it.
+    return clamp(g.h*.61,g.centerY+62,g.h-104);
+  }
+
+  function placeActiveTool(mode=STATE.activeMode){
+    STATE.toolX=.53;
+    STATE.desiredHandleY=activeToolHome(mode);
+    STATE.draggingTool=false;
+    STATE.toolPointerId=null;
   }
 
   function radiusAt(t){
@@ -566,8 +590,8 @@
     const s=toolState();
     const paper=SANDPAPERS.find(p=>p.id===STATE.activeSandpaper)||SANDPAPERS[1];
     ctx.save();ctx.translate(s.handleX,s.handleY-18);
-    const grad=ctx.createLinearGradient(-34,-16,34,16);grad.addColorStop(0,shade(paper.tone,.16));grad.addColorStop(1,shade(paper.tone,-.08));
-    rr(-34,-16,68,32,6,grad,"#3e2419",1.5);
+    const grad=ctx.createLinearGradient(-42,-20,42,20);grad.addColorStop(0,shade(paper.tone,.16));grad.addColorStop(1,shade(paper.tone,-.08));
+    rr(-42,-20,84,40,7,grad,"#3e2419",1.7);
     ctx.fillStyle="rgba(255,255,255,.22)";for(let i=0;i<55;i++){const px=-29+Math.random()*58,py=-12+Math.random()*24;ctx.fillRect(px,py,1.2,1.2);}
     ctx.fillStyle="rgba(255,255,255,.88)";ctx.font="bold 11px Inter, Arial";ctx.textAlign="center";ctx.fillText(STATE.activeSandpaper,0,4);
     if(STATE.draggingTool) rr(-38,-20,76,40,8,null,"rgba(183,255,73,.78)",2);
@@ -578,7 +602,7 @@
     if(STATE.activeMode!=="FINISH") return;
     const s=toolState(), x=s.handleX, y=s.handleY, tipColor=finishApplyColor();
     ctx.save();ctx.translate(x,y);
-    const hg=ctx.createLinearGradient(-11,18,11,88);hg.addColorStop(0,"#e9a75a");hg.addColorStop(.4,"#bc6d2e");hg.addColorStop(1,"#5c3016");rr(-11,18,22,74,8,hg,"#4a250f",1.3);
+    const hg=ctx.createLinearGradient(-13,18,13,94);hg.addColorStop(0,"#e9a75a");hg.addColorStop(.4,"#bc6d2e");hg.addColorStop(1,"#5c3016");rr(-11,18,22,74,8,hg,"#4a250f",1.3);
     const fg=ctx.createLinearGradient(-15,-3,15,14);fg.addColorStop(0,"#70767a");fg.addColorStop(.5,"#f2f4f4");fg.addColorStop(1,"#656b6f");rr(-15,-3,30,20,3,fg,"#50565a",1.2);
     const br=ctx.createLinearGradient(-15,-30,15,-5);br.addColorStop(0,shade(tipColor,.08));br.addColorStop(.55,tipColor);br.addColorStop(1,shade(tipColor,-.10));ctx.beginPath();ctx.moveTo(-15,-3);ctx.lineTo(-12,-30);ctx.lineTo(12,-30);ctx.lineTo(15,-3);ctx.closePath();ctx.fillStyle=br;ctx.fill();ctx.strokeStyle="#49311f";ctx.stroke();
     rr(-12,-34,24,7,3,tipColor,null);
@@ -643,10 +667,17 @@
     STATE.toolX=clamp((desiredX-g.blankLeft)/g.blankLengthPx,0,1);
 
     let minY,maxY;
-    if(STATE.activeMode==="CHISEL"){minY=g.centerY+TOOL_VISUAL.tipToHandlePx*TOOL_VISUAL.scale+5;maxY=g.h*.96;}
-    else if(STATE.activeMode==="SANDPAPER"){minY=g.centerY+22;maxY=g.h*.94;}
-    else {minY=g.centerY+34;maxY=g.h*.91;}
-    STATE.desiredHandleY=clamp(desiredY,minY,maxY);
+    if(STATE.activeMode==="CHISEL"){
+      minY=g.centerY+TOOL_VISUAL.tipToHandlePx*TOOL_VISUAL.scale+8;
+      maxY=g.h-44;
+    }else if(STATE.activeMode==="SANDPAPER"){
+      minY=g.centerY+30;
+      maxY=g.h-38;
+    }else{
+      minY=g.centerY+58;
+      maxY=g.h-100;
+    }
+    STATE.desiredHandleY=clamp(desiredY,minY,Math.max(minY,maxY));
   });
 
   function endTool(e){
@@ -787,7 +818,7 @@
       btn.addEventListener("click",()=>{
         STATE.activeSandpaper=btn.dataset.sand;
         STATE.activeMode="SANDPAPER";
-        STATE.desiredHandleY=geometry().toolHomeY*.92;
+        placeActiveTool("SANDPAPER");
         updateLabels();
         closePopup();
       });
@@ -822,7 +853,7 @@
       btn.addEventListener("click",()=>{
         STATE.activeChisel=btn.dataset.chisel;
         STATE.activeMode="CHISEL";
-        STATE.desiredHandleY=geometry().toolHomeY;
+        placeActiveTool("CHISEL");
         updateLabels();
         closePopup();
       });
@@ -858,7 +889,7 @@
       btn.addEventListener("click",()=>{
         STATE.activeFinish=btn.dataset.finish;
         STATE.activeMode="FINISH";
-        STATE.desiredHandleY=geometry().toolHomeY*.92;
+        placeActiveTool("FINISH");
         updateLabels();
         closePopup();
       });
