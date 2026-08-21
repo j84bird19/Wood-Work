@@ -1,9 +1,0 @@
-{
-  "name": "WoodPrep Lathe",
-  "short_name": "WoodPrep",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#151719",
-  "theme_color": "#17191b",
-  "orientation": "landscape"
-}
