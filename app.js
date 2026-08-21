@@ -226,6 +226,135 @@
     return currentFinish().apply || "#c89353";
   }
 
+  function chiselSVG(id, layout="popup"){
+    const vertical = layout==="rack";
+    const size = vertical ? 88 : 260;
+    const width = vertical ? 64 : 260;
+    const height = vertical ? 88 : 92;
+
+    // Distinct profiles in side view using SVG paths.
+    const defs = {
+      roughing: {
+        blade: vertical
+          ? `<path d="M31 16 L33 16 L41 53 Q32 60 23 53 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.3"/>
+             <path d="M25 20 Q32 14 39 20" fill="none" stroke="#f6fbfc" stroke-width="1.7" opacity=".9"/>`
+          : `<path d="M18 41 L88 41 L111 32 L129 32 L129 60 L111 60 L88 51 L18 51 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.4"/>
+             <path d="M88 42 Q100 34 111 42" fill="none" stroke="#f8fcfd" stroke-width="2" opacity=".95"/>`
+      },
+      spindle: {
+        blade: vertical
+          ? `<path d="M29 16 L35 16 L36 49 Q32 58 28 49 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.2"/>
+             <path d="M29 21 Q32 16 35 21" fill="none" stroke="#f8fcfd" stroke-width="1.4" opacity=".95"/>`
+          : `<path d="M18 43 L90 43 L112 38 L126 38 L126 54 L112 54 L90 49 L18 49 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.3"/>
+             <path d="M92 43 Q101 37 110 43" fill="none" stroke="#f8fcfd" stroke-width="1.6" opacity=".95"/>`
+      },
+      bowl: {
+        blade: vertical
+          ? `<path d="M26 16 L38 16 L43 52 Q32 62 21 52 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.3"/>
+             <path d="M23 20 Q32 11 41 20" fill="none" stroke="#f8fcfd" stroke-width="1.8" opacity=".95"/>`
+          : `<path d="M18 40 L87 40 L109 28 L132 28 L132 62 L109 62 L87 50 L18 50 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.4"/>
+             <path d="M88 41 Q101 29 114 41" fill="none" stroke="#f8fcfd" stroke-width="2.1" opacity=".95"/>`
+      },
+      skew: {
+        blade: vertical
+          ? `<path d="M26 16 L38 16 L43 54 L21 48 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.3"/>
+             <path d="M23 25 L40 20" fill="none" stroke="#ffffff" stroke-width="1.6" opacity=".9"/>`
+          : `<path d="M18 41 L88 41 L130 33 L130 57 L88 57 L18 51 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.4"/>
+             <path d="M90 44 L127 37" fill="none" stroke="#ffffff" stroke-width="1.8" opacity=".92"/>`
+      },
+      parting: {
+        blade: vertical
+          ? `<path d="M29 16 L35 16 L38 50 L26 50 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.2"/>
+             <path d="M26 50 L32 58 L38 50" fill="url(#steel2)" stroke="#5c6266" stroke-width="1.1"/>`
+          : `<path d="M18 43 L94 43 L114 43 L120 33 L126 43 L126 51 L120 61 L114 51 L94 51 L18 51 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.3"/>`
+      },
+      scraper: {
+        blade: vertical
+          ? `<path d="M25 16 L39 16 L39 47 L42 50 Q32 61 22 50 L25 47 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.2"/>
+             <path d="M23 18 Q32 12 41 18" fill="none" stroke="#ffffff" stroke-width="1.3" opacity=".85"/>`
+          : `<path d="M18 43 L88 43 L113 43 Q126 43 132 51 Q126 59 113 59 L88 59 L18 51 Z" fill="url(#steel)" stroke="#5c6266" stroke-width="1.4"/>
+             <path d="M110 45 Q123 45 129 51" fill="none" stroke="#ffffff" stroke-width="1.5" opacity=".85"/>`
+      }
+    };
+
+    const body = defs[id] || defs.roughing;
+
+    const shared = vertical
+      ? `
+        <defs>
+          <linearGradient id="steel" x1="0" x2="1">
+            <stop offset="0" stop-color="#71787c"/>
+            <stop offset=".35" stop-color="#f0f4f5"/>
+            <stop offset=".58" stop-color="#ffffff"/>
+            <stop offset="1" stop-color="#767c80"/>
+          </linearGradient>
+          <linearGradient id="steel2" x1="0" x2="1">
+            <stop offset="0" stop-color="#6c7377"/>
+            <stop offset=".5" stop-color="#edf2f3"/>
+            <stop offset="1" stop-color="#666c70"/>
+          </linearGradient>
+          <linearGradient id="ferrule" x1="0" x2="1">
+            <stop offset="0" stop-color="#764414"/>
+            <stop offset=".45" stop-color="#ebb951"/>
+            <stop offset=".7" stop-color="#ffe57f"/>
+            <stop offset="1" stop-color="#7a4914"/>
+          </linearGradient>
+          <linearGradient id="wood" x1="0" x2="1">
+            <stop offset="0" stop-color="#6b3918"/>
+            <stop offset=".35" stop-color="#d3833c"/>
+            <stop offset=".65" stop-color="#f0ae5f"/>
+            <stop offset="1" stop-color="#7a401d"/>
+          </linearGradient>
+        </defs>
+        ${body.blade}
+        <rect x="27.2" y="53" width="9.6" height="8.4" rx="2.2" fill="url(#ferrule)" stroke="#644013" stroke-width="1"/>
+        <path d="M22 61 Q32 55 42 61 L42 82 Q32 87 22 82 Z" fill="url(#wood)" stroke="#5a2d14" stroke-width="1.2"/>
+        <path d="M24 67 Q32 64 40 67" fill="none" stroke="rgba(255,231,189,.55)" stroke-width="1"/>`
+      : `
+        <defs>
+          <linearGradient id="steel" x1="0" x2="1">
+            <stop offset="0" stop-color="#71787c"/>
+            <stop offset=".35" stop-color="#f0f4f5"/>
+            <stop offset=".58" stop-color="#ffffff"/>
+            <stop offset="1" stop-color="#767c80"/>
+          </linearGradient>
+          <linearGradient id="steel2" x1="0" x2="1">
+            <stop offset="0" stop-color="#6c7377"/>
+            <stop offset=".5" stop-color="#edf2f3"/>
+            <stop offset="1" stop-color="#666c70"/>
+          </linearGradient>
+          <linearGradient id="ferrule" x1="0" x2="1">
+            <stop offset="0" stop-color="#764414"/>
+            <stop offset=".45" stop-color="#ebb951"/>
+            <stop offset=".7" stop-color="#ffe57f"/>
+            <stop offset="1" stop-color="#7a4914"/>
+          </linearGradient>
+          <linearGradient id="wood" x1="0" x2="1">
+            <stop offset="0" stop-color="#6b3918"/>
+            <stop offset=".35" stop-color="#d3833c"/>
+            <stop offset=".65" stop-color="#f0ae5f"/>
+            <stop offset="1" stop-color="#7a401d"/>
+          </linearGradient>
+        </defs>
+        ${body.blade}
+        <rect x="129" y="41" width="18" height="10" rx="2.2" fill="url(#ferrule)" stroke="#644013" stroke-width="1"/>
+        <path d="M147 35 Q179 33 209 35 Q221 36 226 46 Q221 56 209 57 Q179 59 147 57 Z" fill="url(#wood)" stroke="#5a2d14" stroke-width="1.2"/>
+        <path d="M156 40 Q181 37 205 40" fill="none" stroke="rgba(255,231,189,.55)" stroke-width="1.2"/>`
+
+    return `<svg class="chisel-svg ${layout}" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" aria-hidden="true">${shared}</svg>`;
+  }
+
+  function hydrateRackChiselVisuals(){
+    const rackTools = document.querySelectorAll(".chisel-rack .rack-tool");
+    rackTools.forEach((node, index)=>{
+      const chisel = CHISELS[index];
+      if(!chisel) return;
+      node.innerHTML = chiselSVG(chisel.id, "rack");
+      node.setAttribute("data-chisel-id", chisel.id);
+      node.setAttribute("title", chisel.name);
+    });
+  }
+
   function targetRadius(t){
     // Gentle default spindle silhouette, later replaced by uploaded target profiles.
     if(t<.10) return 1.42;
@@ -924,12 +1053,7 @@
           <button class="visual-option chisel-option ${c.id===STATE.activeChisel?"selected":""}"
                   data-chisel="${c.id}" type="button">
             <span class="option-image chisel-image illustration-card">
-              <i class="popup-chisel ${c.visual}">
-                <span class="pc-metal"></span>
-                <span class="pc-tip"></span>
-                <span class="pc-ferrule"></span>
-                <span class="pc-handle"></span>
-              </i>
+              ${chiselSVG(c.id, "popup")}
             </span>
             <span class="option-copy">
               <strong>${c.name}</strong>
@@ -1052,6 +1176,7 @@
   }
 
   resize();
+  hydrateRackChiselVisuals();
   resetBlank();
   updateSpeedVisual();
   requestAnimationFrame(frame);

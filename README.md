@@ -189,3 +189,21 @@ This build keeps all approved working systems and patches only the requested are
   skew = angled/asymmetric
   parting = narrow groove
   scraper = broader/shallow smoothing
+
+
+## v0.3.6 — Chisel Visual Hotfix
+
+Mechanics and logic remain unchanged.
+
+This patch replaces the generic CSS-built chisel drawings with explicit SVG illustrations
+so each chisel is visibly different in both places:
+- the lower chisel selection rack
+- the enlarged chisel popup cards
+
+Updated visual distinctions:
+- Roughing gouge: broad U-shaped cutting profile
+- Spindle gouge: narrower detail gouge
+- Bowl gouge: deeper, wider curved flute
+- Skew chisel: angled blade face
+- Parting tool: narrow diamond / sizing blade
+- Round-nose scraper: broad rounded scraping edge

@@ -1,4 +1,4 @@
-const CACHE="woodprep-v0.3.5-reach-panel-chisel";
+const CACHE="woodprep-v0.3.6-chisel-visual-hotfix";
 const FILES=["./","./index.html","./styles.css","./app.js","./manifest.webmanifest"];
 
 self.addEventListener("install",event=>{

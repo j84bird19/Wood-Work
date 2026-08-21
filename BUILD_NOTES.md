@@ -159,3 +159,14 @@ Acceptance:
 - [ ] Parting tool looks narrow and distinct
 - [ ] Skew looks angled and distinct
 - [ ] Different chisel types affect wood differently enough to notice
+
+
+## v0.3.6 Chisel Visual Hotfix
+
+- [ ] Lower chisel rack shows visibly different tool shapes
+- [ ] Popup chisel cards no longer reuse the same generic image
+- [ ] Skew looks angled
+- [ ] Parting tool looks narrow and pointed
+- [ ] Roughing / spindle / bowl gouges look different from each other
+- [ ] Scraper looks broad and rounded
+- [ ] No mechanics / logic regressions
