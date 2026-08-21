@@ -142,3 +142,50 @@ After selecting:
 
 Each tool now has its own safe visible home position and remains completely inside
 the lathe canvas when first activated.
+
+
+## v0.3.4 — Chisel Drag Hotfix
+
+Only the chisel input subsystem was changed.
+
+### Root cause
+On shorter landscape phone viewports, the old chisel home/movement limits could
+invert. That could place the center of the handle's invisible grab target outside
+the canvas or collapse the available vertical drag range.
+
+### Fix
+- Chisel handle home position is always inside the visible canvas.
+- Handle/ferrule receives a larger phone-friendly invisible grab area.
+- Chisel now has a guaranteed horizontal and vertical movement range.
+- Pointer capture is backed up by window-level pointer events for Android browsers.
+- Cutting depth remains bounded by the existing contact model.
+- Chisel remains fixed-size.
+- Sandpaper, finish, speed, tool rest, and layout were not changed.
+
+
+## v0.3.5 — Reach + Popup Panels + Chisel Rack Refinement
+
+This build keeps all approved working systems and patches only the requested areas.
+
+### 1) Tool reach
+- Active tools can now travel a little past the physical blank ends visually, while
+  contact still clamps safely to the real workpiece.
+- Vertical movement ranges were loosened so the working tools can comfortably reach
+  more of the blank.
+- Default tool home positions were rebalanced lower for easier reach.
+
+### 2) Lower selector panels
+- The lower sandpaper / chisel / finish selector area is shorter.
+- Panels sit more like popup trays and block less of the active tool handle area.
+- The chisel panel is the shortest of the three so the handle is easier to grab.
+
+### 3) Chisel rack visuals and behavior
+- Bottom selector-rack chisel tips now look more visibly different from each other.
+- Roughing, spindle, bowl, skew, parting, and scraper silhouettes are easier to tell apart.
+- Chisel cutting response is tuned so the tool types feel more different:
+  roughing = broader/aggressive
+  spindle = narrower detail
+  bowl = stronger center-biased curve
+  skew = angled/asymmetric
+  parting = narrow groove
+  scraper = broader/shallow smoothing

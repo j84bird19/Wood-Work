@@ -192,23 +192,18 @@
     const g=geometry();
 
     if(mode==="CHISEL"){
-      // Keep the entire fixed-size chisel inside the canvas.
-      const minY=g.centerY + TOOL_VISUAL.tipToHandlePx*TOOL_VISUAL.scale + 12;
-      const maxY=g.h - 46;
-      return clamp(g.h*.78,minY,maxY);
+      return clamp(g.h*.79, g.centerY+62, Math.max(g.centerY+62,g.h-28));
     }
 
     if(mode==="SANDPAPER"){
-      // Pad is centered around handleY-18.
-      return clamp(g.h*.70,g.centerY+48,g.h-54);
+      return clamp(g.h*.75, g.centerY+34, Math.max(g.centerY+34,g.h-26));
     }
 
-    // Brush: tip is above the handle and the wooden handle extends below it.
-    return clamp(g.h*.61,g.centerY+62,g.h-104);
+    return clamp(g.h*.73, g.centerY+42, Math.max(g.centerY+42,g.h-86));
   }
 
   function placeActiveTool(mode=STATE.activeMode){
-    STATE.toolX=.53;
+    STATE.toolX=.50;
     STATE.desiredHandleY=activeToolHome(mode);
     STATE.draggingTool=false;
     STATE.toolPointerId=null;
@@ -244,13 +239,14 @@
 
   function toolState(){
     const g = geometry();
-    const xNorm = clamp(STATE.toolX,0,1);
+    const rawXNorm = STATE.toolX;
+    const xNorm = clamp(rawXNorm,0,1);
     const idx = clamp(Math.round(xNorm*(STATE.samples-1)),0,STATE.samples-1);
     const currentRadius = STATE.radii[idx];
     const pxPerIn = g.maxRadiusPx/(STATE.blankDiameterIn/2);
     const surfaceBottomY = g.centerY + currentRadius*pxPerIn;
 
-    const handleX = g.blankLeft + xNorm*g.blankLengthPx;
+    const handleX = g.blankLeft + rawXNorm*g.blankLengthPx;
     const handleY = STATE.desiredHandleY;
 
     let contactY = handleY;
@@ -277,14 +273,43 @@
     };
   }
 
-  function influence(d, shape){
+  function influence(d, chisel){
     const a = Math.abs(d);
     if(a>1) return 0;
-    if(shape==="flat") return a<.82 ? 1 : (1-a)/.18;
-    if(shape==="skew"){
-      const b = Math.max(0,1-a);
-      return d<0 ? Math.min(1,b*1.3) : b*.76;
+
+    if(chisel.id==="parting"){
+      // Narrow groove / sizing cut.
+      return a<.45 ? 1 : (1-a)/.55;
     }
+
+    if(chisel.id==="skew"){
+      const b = Math.max(0,1-a);
+      return d<0 ? Math.min(1,b*1.35) : b*.72;
+    }
+
+    if(chisel.id==="scraper"){
+      // Broad but shallower smoothing action.
+      return Math.pow(Math.max(0,1-a), .75);
+    }
+
+    if(chisel.id==="roughing"){
+      return Math.sqrt(Math.max(0,1-a*a));
+    }
+
+    if(chisel.id==="spindle"){
+      // Narrower detail cut.
+      return Math.pow(Math.max(0,1-a), 1.25);
+    }
+
+    if(chisel.id==="bowl"){
+      // Stronger center-biased curve.
+      return Math.pow(Math.max(0,1-a*a), .65);
+    }
+
+    if(chisel.shape==="flat"){
+      return a<.82 ? 1 : (1-a)/.18;
+    }
+
     return Math.sqrt(Math.max(0,1-a*a));
   }
 
@@ -306,22 +331,42 @@
   function applyChiselContact(s,dt){
     const w=contactWindow(s,s.chisel.widthIn,1.25);
     let removed=0;
+
+    let shoulderScale=.18;
+    let aggressiveness=.78;
+
+    if(s.chisel.id==="roughing"){ shoulderScale=.22; aggressiveness=.92; }
+    else if(s.chisel.id==="spindle"){ shoulderScale=.12; aggressiveness=.72; }
+    else if(s.chisel.id==="bowl"){ shoulderScale=.15; aggressiveness=.88; }
+    else if(s.chisel.id==="skew"){ shoulderScale=.10; aggressiveness=.80; }
+    else if(s.chisel.id==="parting"){ shoulderScale=.04; aggressiveness=.96; }
+    else if(s.chisel.id==="scraper"){ shoulderScale=.16; aggressiveness=.50; }
+
     for(let i=w.start;i<=w.end;i++){
       const d=(i-w.center)/w.half;
-      const inf=influence(d,s.chisel.shape);
+      const inf=influence(d,s.chisel);
       if(inf<=0) continue;
-      const target=Math.min(STATE.blankDiameterIn/2,s.desiredRadius+(1-inf)*(s.chisel.widthIn*.18));
+
+      const target=Math.min(
+        STATE.blankDiameterIn/2,
+        s.desiredRadius + (1-inf)*(s.chisel.widthIn*shoulderScale)
+      );
+
       if(STATE.radii[i]>target){
         const before=STATE.radii[i];
-        const follow=clamp(.64+dt*10,.66,.94);
-        STATE.radii[i]=Math.max(target,lerp(STATE.radii[i],target,follow));
+        const follow=clamp(.48 + aggressiveness + dt*6, .60, .96);
+        STATE.radii[i]=Math.max(target, lerp(STATE.radii[i], target, follow));
         STATE.cutAmount[i]=Math.max(STATE.cutAmount[i],STATE.blankDiameterIn/2-STATE.radii[i]);
         STATE.finishCoverage[i]=Math.max(0,STATE.finishCoverage[i]-.35);
         STATE.sandedAmount[i]=Math.max(0,STATE.sandedAmount[i]-.15);
         removed+=before-STATE.radii[i];
       }
     }
-    if(removed>.0002) spawnChips(s,Math.min(12,2+Math.floor(removed*155)));
+
+    if(removed>.0002){
+      const chipBurst = s.chisel.id==="roughing" ? 14 : s.chisel.id==="parting" ? 8 : 11;
+      spawnChips(s,Math.min(chipBurst,2+Math.floor(removed*155)));
+    }
   }
 
   function applySandpaperContact(s,dt){
@@ -580,8 +625,9 @@
     ctx.closePath();ctx.fillStyle=hg;ctx.fill();ctx.strokeStyle="#48230f";ctx.lineWidth=1.5;ctx.stroke();
 
     if(STATE.draggingTool){
-      ctx.strokeStyle="rgba(182,255,69,.75)";ctx.lineWidth=2;
-      ctx.beginPath();ctx.ellipse(x,hy,25*scale,46*scale,0,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle="rgba(182,255,69,.80)";
+      ctx.lineWidth=2;
+      rr(x-36,hy-62,72,110,10,null,"rgba(182,255,69,.80)",2);
     }
   }
 
@@ -637,59 +683,104 @@
 
   function activeToolHit(x,y){
     const s=toolState();
+
     if(STATE.activeMode==="CHISEL"){
-      const dx=(x-s.handleX)/(TOOL_VISUAL.handleRadiusX*TOOL_VISUAL.scale*1.45),dy=(y-s.handleY)/(TOOL_VISUAL.handleRadiusY*TOOL_VISUAL.scale*1.35);return dx*dx+dy*dy<=1;
+      // Grab is still handle-only in intent, but use a phone-friendly invisible
+      // rectangle covering the wooden handle + ferrule. This avoids a tiny
+      // ellipse becoming effectively untouchable on Android.
+      const halfW=36;
+      const top=s.handleY-62;
+      const bottom=s.handleY+48;
+      return Math.abs(x-s.handleX)<=halfW && y>=top && y<=bottom;
     }
-    if(STATE.activeMode==="SANDPAPER") return Math.abs(x-s.handleX)<=44 && Math.abs(y-(s.handleY-18))<=28;
-    if(STATE.activeMode==="FINISH") return Math.abs(x-s.handleX)<=28 && y>=s.handleY-45 && y<=s.handleY+100;
+
+    if(STATE.activeMode==="SANDPAPER"){
+      return Math.abs(x-s.handleX)<=44 && Math.abs(y-(s.handleY-18))<=28;
+    }
+
+    if(STATE.activeMode==="FINISH"){
+      return Math.abs(x-s.handleX)<=28 && y>=s.handleY-45 && y<=s.handleY+100;
+    }
+
     return false;
   }
 
-  canvas.addEventListener("pointerdown",e=>{
-    if(STATE.draggingTool) return;
+  function beginToolDrag(e){
+    if(STATE.draggingTool) return false;
+
     const p=localPointer(e);
-    if(!activeToolHit(p.x,p.y)) return;
+    if(!activeToolHit(p.x,p.y)) return false;
+
     const s=toolState();
     STATE.draggingTool=true;
     STATE.toolPointerId=e.pointerId;
     STATE.grabOffsetX=p.x-s.handleX;
     STATE.grabOffsetY=p.y-s.handleY;
-    canvas.setPointerCapture(e.pointerId);
-  });
 
-  canvas.addEventListener("pointermove",e=>{
+    if(e.cancelable) e.preventDefault();
+
+    try{
+      canvas.setPointerCapture(e.pointerId);
+    }catch(_err){
+      // Window listeners below are the fallback on browsers that reject capture.
+    }
+
+    return true;
+  }
+
+  function moveToolDrag(e){
     if(!STATE.draggingTool || e.pointerId!==STATE.toolPointerId) return;
+
     const p=localPointer(e);
     const g=geometry();
+
     const desiredX=p.x-STATE.grabOffsetX;
     const desiredY=p.y-STATE.grabOffsetY;
 
-    STATE.toolX=clamp((desiredX-g.blankLeft)/g.blankLengthPx,0,1);
+    STATE.toolX=clamp((desiredX-g.blankLeft)/g.blankLengthPx,-0.035,1.035);
 
-    let minY,maxY;
     if(STATE.activeMode==="CHISEL"){
-      minY=g.centerY+TOOL_VISUAL.tipToHandlePx*TOOL_VISUAL.scale+8;
-      maxY=g.h-44;
+      const minY=Math.max(g.centerY+18, g.h*.38);
+      const maxY=Math.max(minY+34,g.h-18);
+      STATE.desiredHandleY=clamp(desiredY,minY,maxY);
     }else if(STATE.activeMode==="SANDPAPER"){
-      minY=g.centerY+30;
-      maxY=g.h-38;
+      const minY=g.centerY+16;
+      const maxY=Math.max(minY+26,g.h-18);
+      STATE.desiredHandleY=clamp(desiredY,minY,maxY);
     }else{
-      minY=g.centerY+58;
-      maxY=g.h-100;
+      const minY=g.centerY+24;
+      const maxY=Math.max(minY+30,g.h-82);
+      STATE.desiredHandleY=clamp(desiredY,minY,maxY);
     }
-    STATE.desiredHandleY=clamp(desiredY,minY,Math.max(minY,maxY));
-  });
 
-  function endTool(e){
+    if(e.cancelable) e.preventDefault();
+  }
+
+  function endToolDrag(e){
     if(!STATE.draggingTool) return;
     if(e.pointerId!==undefined && e.pointerId!==STATE.toolPointerId) return;
-    STATE.draggingTool=false;STATE.toolPointerId=null;
-    if(e.pointerId!==undefined && canvas.hasPointerCapture(e.pointerId)){
-      canvas.releasePointerCapture(e.pointerId);
-    }
+
+    const pid=STATE.toolPointerId;
+    STATE.draggingTool=false;
+    STATE.toolPointerId=null;
+
+    try{
+      if(pid!==null && canvas.hasPointerCapture(pid)){
+        canvas.releasePointerCapture(pid);
+      }
+    }catch(_err){}
   }
-  canvas.addEventListener("pointerup",endTool);
-  canvas.addEventListener("pointercancel",endTool);
+
+  canvas.addEventListener("pointerdown",beginToolDrag,{passive:false});
+  canvas.addEventListener("pointermove",moveToolDrag,{passive:false});
+  canvas.addEventListener("pointerup",endToolDrag,{passive:false});
+  canvas.addEventListener("pointercancel",endToolDrag,{passive:false});
+
+  // Android/browser fallback: if pointer capture is interrupted, keep the drag
+  // alive from the window until the finger is released.
+  window.addEventListener("pointermove",moveToolDrag,{passive:false});
+  window.addEventListener("pointerup",endToolDrag,{passive:false});
+  window.addEventListener("pointercancel",endToolDrag,{passive:false});
 
   // ===== Popup system =====
   let openingArea=null;
@@ -914,7 +1005,8 @@
   }
 
   function updateLabels(){
-    els.positionReadout.textContent=`${(STATE.toolX*STATE.workLengthIn).toFixed(1)}"`;
+    const shownPos = clamp(STATE.toolX,0,1)*STATE.workLengthIn;
+    els.positionReadout.textContent=`${shownPos.toFixed(1)}"`;
     els.diameterReadout.textContent=`${(radiusAt(STATE.toolX)*2).toFixed(2)}"`;
     els.activeSandLabel.textContent=STATE.activeSandpaper;
     els.activeChiselLabel.textContent=currentChisel().name;

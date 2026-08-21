@@ -124,3 +124,38 @@ Acceptance:
 - [ ] Active tool remains inside canvas on resize
 - [ ] Speed and tool rest behavior unchanged
 - [ ] Main landscape layout unchanged
+
+
+## v0.3.4 Chisel Drag Hotfix Acceptance
+
+- [ ] Chisel appears after selection
+- [ ] Touching the wooden handle/ferrule starts drag
+- [ ] Chisel follows finger left/right
+- [ ] Chisel follows finger up/down
+- [ ] Chisel stays fixed-size during movement
+- [ ] Drag does not stop when finger briefly crosses canvas/browser boundaries
+- [ ] Chisel contact/cutting behavior remains active
+- [ ] Sandpaper unchanged
+- [ ] Paint/Stain unchanged
+- [ ] Speed unchanged
+- [ ] Tool Rest unchanged
+- [ ] Main landscape interface unchanged
+
+
+## v0.3.5 Acceptance
+
+### Reach
+- [ ] Brush can reach all usable sections of the blank more comfortably
+- [ ] Chisel can reach all usable sections of the blank more comfortably
+- [ ] Sandpaper can reach all usable sections of the blank more comfortably
+- [ ] Tool can slightly overtravel at the ends visually without breaking the workpiece logic
+
+### Lower panels
+- [ ] Lower trays are shorter / more popup-like
+- [ ] Chisel panel no longer blocks the handle as much
+
+### Chisels
+- [ ] Chisel rack silhouettes are visibly different
+- [ ] Parting tool looks narrow and distinct
+- [ ] Skew looks angled and distinct
+- [ ] Different chisel types affect wood differently enough to notice
